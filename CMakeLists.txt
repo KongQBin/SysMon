@@ -1,0 +1,16 @@
+project(SysMon)
+include_directories(
+    ./
+    /usr/include
+    /usr/local/include
+#    /opt/gcc-9.5.0/include
+#    /opt/gcc-9.5.0/include/c++/9.5.0
+    )
+
+cmake_minimum_required(VERSION 2.8)
+aux_source_directory(. SRC_LIST)
+# link_libraries(
+#     /lib64/libselinux.so
+#     # /lib64/libseccomp.so.2
+# )
+add_executable(${PROJECT_NAME} ${SRC_LIST})
