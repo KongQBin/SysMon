@@ -226,7 +226,6 @@ void mon_sys_calls_x64(pid_t child, struct user_regs_struct *reg)
         //        print_argv(child,reg);
         break;
     default:
-        printf("reg->orig_rax is %d\n",reg->orig_rax);
         break;
     }
 }
@@ -239,25 +238,7 @@ void ptrace_hook(pid_t child) {
     ptrace(PTRACE_SYSEMU, child, 0, 0);
     int status,signal_number;
     while (1) {
-        //        wait(0);
-
-        // 等待子进程受到跟踪因为下一个系统调用而暂停
-        waitpid(child,&status,0);
-        if (WIFSTOPPED(status)) {
-            // Check if the child received a signal
-            signal_number = WSTOPSIG(status);
-            printf("signal is %d\n",signal_number);
-            // kill -15 || kill -2(ctrl + c)
-            if(signal_number == 15 || signal_number == 2)
-            {
-                if (ptrace(PTRACE_CONT, child, NULL, signal_number) == -1) {
-                    perror("ptrace continue");
-                }
-                exit(1);
-                continue;
-            }
-        }
-
+        wait(0);
         memset(&reg,0,sizeof(reg));
         // 获取子进程寄存器的值
         ptrace(PTRACE_GETREGS, child, 0, &reg);
