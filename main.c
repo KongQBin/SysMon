@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <sys/user.h>
-#include <sys/ptrace.h>
 #include <string.h>
 #include <errno.h>
+#include "init.h"
 
 /*
  * struct user_regs_struct
@@ -269,6 +269,10 @@ void ptrace_hook(pid_t child) {
 }
 
 int main(int argc, char** argv) {
+    struct regs_struct_offset offset;
+    init(&offset);
+    return 1;
+
 //    SysMon();
     pid_t target_pid = atoi(argv[1]);
     // 附加到被传入PID的进程
