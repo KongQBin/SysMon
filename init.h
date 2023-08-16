@@ -12,6 +12,10 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 
+#ifndef PTRACE_SYSEMU
+    #define PTRACE_SYSEMU   31
+#endif
+
 struct regs_struct_offset
 {
     int call;       //系统调用号
