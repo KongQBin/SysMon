@@ -13,6 +13,6 @@ aux_source_directory(. SRC_LIST)
 #     /lib64/libselinux.so
 #     # /lib64/libseccomp.so.2
 # )
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 add_executable(${PROJECT_NAME} ${SRC_LIST}
     init.h)
