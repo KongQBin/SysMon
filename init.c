@@ -1,24 +1,22 @@
 #include "init.h"
-
-
-int init(struct regs_struct_offset *offset)
+int init()
 {
-    int ret = testMonWrite(offset);
-    printf("curr pid = %d\ttestMonWrite ret = %d\n",getpid(),ret);
-    printf("offset.call = %d\n",offset->call);
-    printf("offset.ret = %d\n",offset->ret);
-    printf("offset.argv1 = %d\n",offset->argv1);
-    printf("offset.argv2 = %d\n",offset->argv2);
-    printf("offset.argv3 = %d\n",offset->argv3);
-    return 0;
+    int ret = initRegsOffset();
+    printf("current process id = %d\ninitRegsOffset ret = %d\n",getpid(),ret);
+    printf("offset.call = %d\n",g_regsOffset.call);
+    printf("offset.ret = %d\n",g_regsOffset.ret);
+    printf("offset.argv1 = %d\n",g_regsOffset.argv1);
+    printf("offset.argv2 = %d\n",g_regsOffset.argv2);
+    printf("offset.argv3 = %d\n",g_regsOffset.argv3);
+    return ret;
 }
 
-int testMonWrite(struct regs_struct_offset *offset)
+int initRegsOffset()
 {
     int ret = 0;
-    const char* msg = "test write";
+    const char *msg = "test write";
+    const char *msg2 = "abcdefghijklmn";
     int msgLen = strlen(msg);
-    const char* msg2 = "abcdefghijklmn";
     int msgLen2 = strlen(msg2);
 
 
@@ -29,37 +27,36 @@ int testMonWrite(struct regs_struct_offset *offset)
         return -1;
     }
 
-//    fcntl(fd[0],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);//设置fd为阻塞模式
-    fcntl(fd[1],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);//设置fd为阻塞模式
-
+    fcntl(fd[0],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);//设置fd为阻塞模式
+    fcntl(fd[1],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);
 
     int pr = fd[0], pw = fd[1];
     pid_t pid = fork();
     if(pid == 0)
     {
-        printf("this is son pid is %d\n",getpid());
-        int fd = open("/dev/null",O_RDONLY);
+//        printf("son pid is %d\n",getpid());
+        int fd = open("/dev/null",O_WRONLY);
         if(fd < 0) perror("open");
         if(fd >= 0 && write(pw,&fd,sizeof(fd)) == sizeof(fd))
         {
             int whileNum = 10;
             while(--whileNum)
             {
-                printf("while = %d\n",whileNum);
+//                printf("while = %d\n",whileNum);
                 usleep(100000);
                 write(fd,msg,msgLen);
                 write(fd,msg2,msgLen2);
             }
         }
-        if(fd) close(fd);
-        if(pr) close(pr);
-        if(pw) close(pw);
+        if(fd >= 0) close(fd);
+        if(pr >= 0) close(pr);
+        if(pw >= 0) close(pw);
         exit(0);
     }
     else if(pid > 0)
     {
         usleep(300000);
-        printf("son pid is %d\n",pid);
+//        printf("son pid is %d\n",pid);
         if (ptrace(PTRACE_ATTACH, pid, 0, 0) == -1) {
             perror("ptrace attach");
             return -2;
@@ -76,9 +73,9 @@ int testMonWrite(struct regs_struct_offset *offset)
         if(read(pr,&sonFd,sizeof(sonFd)) != sizeof(sonFd))
             return -4;
 
-        printf("sonFd = %d\n",sonFd);
+//        printf("sonFd = %d\n",sonFd);
         int whileNum = 20;
-        memset(offset,0,sizeof(struct regs_struct_offset));
+        memset(&g_regsOffset,0,sizeof(struct regs_struct_offset));
         while(--whileNum)
         {
             wait(0);
@@ -89,44 +86,44 @@ int testMonWrite(struct regs_struct_offset *offset)
             for(int i=0;i<regsNum;++i)
             {
                 // 命中返回值
-                if(offset->ret == 0
-                    && pRegs[i] == -38) offset->ret = i;
+                if(g_regsOffset.ret == 0
+                    && pRegs[i] == -38) g_regsOffset.ret = i;
                 else
                 {
                     // 命中第一个参数
-                    if(offset->argv1 == 0
-                        && pRegs[i] == sonFd) offset->argv1 = i;
+                    if(g_regsOffset.argv1 == 0
+                        && pRegs[i] == sonFd) g_regsOffset.argv1 = i;
                     // 命中第二个参数
-                    if(offset->argv2 == 0)
+                    if(g_regsOffset.argv2 == 0)
                     {
                         long tmp = ptrace(PTRACE_PEEKDATA, pid, pRegs[i], NULL);
                         if(!memcmp(&tmp,msg,sizeof(long))
                             || !memcmp(&tmp,msg2,sizeof(long)))
-                            offset->argv2 = i;
+                            g_regsOffset.argv2 = i;
                     }
                     // 命中第三个参数
-                    if(offset->argv3 == 0
+                    if(g_regsOffset.argv3 == 0
                         && (pRegs[i] == msgLen
                             || pRegs[i] == msgLen2))
                     {
-                        offset->argv3 = i;
+                        g_regsOffset.argv3 = i;
                     }
                 }
             }
 
-            if(offset->ret != 0 && offset->argv1 != 0
-                && offset->argv2 != 0 && offset->argv3 != 0)
+            if(g_regsOffset.ret != 0 && g_regsOffset.argv1 != 0
+                && g_regsOffset.argv2 != 0 && g_regsOffset.argv3 != 0)
             {
                 for(int j=0;j<regsNum;++j)
                 {
                     // 命中系统调用号
-                    if(j != offset->ret && j != offset->argv1
-                        && j != offset->argv2 && j != offset->argv3)
+                    if(j != g_regsOffset.ret && j != g_regsOffset.argv1
+                        && j != g_regsOffset.argv2 && j != g_regsOffset.argv3)
                     {
                         // write调用号 在有些内核等于 4 有些内核等于 1
                         if(pRegs[j] == 1 || pRegs[j] == 4)
                         {
-                            offset->call = j;
+                            g_regsOffset.call = j;
                             break;
                         }
                     }
@@ -137,7 +134,7 @@ int testMonWrite(struct regs_struct_offset *offset)
                 perror("ptrace syscall");
                 ret = -7;
             }
-            if(offset->call)
+            if(g_regsOffset.call)
             {
                 ret = 0;
                 break;
@@ -147,7 +144,9 @@ int testMonWrite(struct regs_struct_offset *offset)
     }
     else
     {
-
+        perror("initRegsOffset fork");
     }
+    if(pr >= 0) close(pr);
+    if(pw >= 0) close(pw);
     return ret;
 }

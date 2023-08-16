@@ -27,7 +27,7 @@ struct regs_struct_offset
     int argv5;      //参数五
     int argv6;      //参数六
 };
-
-int init(struct regs_struct_offset *offset);
-int testMonWrite(struct regs_struct_offset *offset);
+struct regs_struct_offset g_regsOffset;
+int initRegsOffset();
+int init();
 #endif // INIT_H
