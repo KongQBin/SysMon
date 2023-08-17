@@ -3,6 +3,7 @@ include_directories(
     ./
     ./cbtree
     ./cbtree/kmap
+    ./callbacks
     ./init
     /usr/include
     /usr/local/include
@@ -15,6 +16,7 @@ aux_source_directory(. SRC_LIST)
 aux_source_directory(./init SRC_LIST)
 aux_source_directory(./cbtree SRC_LIST)
 aux_source_directory(./cbtree/kmap SRC_LIST)
+aux_source_directory(./callbacks SRC_LIST)
 # link_libraries(
 #     /lib64/libselinux.so
 #     # /lib64/libseccomp.so.2
@@ -24,4 +26,6 @@ add_executable(${PROJECT_NAME} ${SRC_LIST}
     ./cbtree/cbtree.h
     ./cbtree/kmap/rbtree.h
     ./init/init.h
+    ./callbacks/callbacks.h
+    ./callbacks/write.h
     )

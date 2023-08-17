@@ -2,6 +2,7 @@
 int init()
 {
     int ret = initRegsOffset();
+    if(!ret) initCallbackTree();
     printf("current process id = %d\ninitRegsOffset ret = %d\n",getpid(),ret);
     printf("offset.call = %d\n",g_regsOffset.call);
     printf("offset.ret = %d\n",g_regsOffset.ret);
@@ -149,4 +150,9 @@ int initRegsOffset()
     if(pr >= 0) close(pr);
     if(pw >= 0) close(pw);
     return ret;
+}
+
+int initCallbackTree()
+{
+    return 0;
 }

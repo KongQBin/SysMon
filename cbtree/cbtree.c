@@ -1,8 +1,9 @@
 #include "cbtree.h"
 
-syscall *cb_search(int id)
+struct rb_root g_cbTree = RB_ROOT;
+struct syscall *cbSearch(int id)
 {
-    struct rb_node *node = g_cbtree.rb_node;
+    struct rb_node *node = g_cbTree.rb_node;
     while (node)
     {
         struct syscall *data = container_of(node, struct syscall, node);
@@ -16,9 +17,9 @@ syscall *cb_search(int id)
     return NULL;
 }
 
-int cb_insert(syscall *data)
+int cbInsert(struct syscall *data)
 {
-    struct rb_node **new_node = &(g_cbtree.rb_node), *parent = NULL;
+    struct rb_node **new_node = &(g_cbTree.rb_node), *parent = NULL;
     /* Figure out where to put new_node node */
     while (*new_node)
     {
@@ -33,7 +34,7 @@ int cb_insert(syscall *data)
     }
     /* Add new_node node and rebalance tree. */
     rb_link_node(&data->node, parent, new_node);
-    rb_insert_color(&data->node, &g_cbtree);
+    rb_insert_color(&data->node, &g_cbTree);
     return 0;
 }
 
