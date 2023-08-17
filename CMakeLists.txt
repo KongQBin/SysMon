@@ -1,6 +1,8 @@
 project(SysMon)
 include_directories(
     ./
+    ./kmap
+    ./init
     /usr/include
     /usr/local/include
 #    /opt/gcc-9.5.0/include
@@ -9,10 +11,14 @@ include_directories(
 
 cmake_minimum_required(VERSION 2.8)
 aux_source_directory(. SRC_LIST)
+aux_source_directory(./init SRC_LIST)
+aux_source_directory(./kmap SRC_LIST)
 # link_libraries(
 #     /lib64/libselinux.so
 #     # /lib64/libseccomp.so.2
 # )
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 add_executable(${PROJECT_NAME} ${SRC_LIST}
-    init.h)
+    ./kmap/rbtree.h
+    ./init/init.h
+    )
