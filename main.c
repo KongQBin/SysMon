@@ -268,100 +268,13 @@ void ptrace_hook(pid_t child) {
     }
 }
 
-
-
-#include "rbtree.h"
-#include <stdbool.h>
-
-struct syscall
-{
-    struct rb_node node;
-    int id;
-    void *func;
-};
-
-struct syscall *my_search(struct rb_root *root, int id)
-{
-    struct rb_node *node = root->rb_node;
-    while (node)
-    {
-        struct syscall *data = container_of(node, struct syscall, node);
-        if (data->id < id)
-            node = node->rb_left;
-        else if (data->id > id)
-            node = node->rb_right;
-        else
-            return data;
-    }
-    return NULL;
-}
-
-int my_insert(struct rb_root *root, struct syscall *data)
-{
-    struct rb_node **new_node = &(root->rb_node), *parent = NULL;
-
-    /* Figure out where to put new_node node */
-    while (*new_node)
-    {
-        struct syscall *this_node = container_of(*new_node, struct syscall, node);
-        parent = *new_node;
-        if (data->id < this_node->id)
-            new_node = &((*new_node)->rb_left);
-        else if (data->id > this_node->id)
-            new_node = &((*new_node)->rb_right);
-        else
-            return false;
-    }
-    /* Add new_node node and rebalance tree. */
-    rb_link_node(&data->node, parent, new_node);
-    rb_insert_color(&data->node, root);
-    return true;
-}
-
-
-
-int testMap()
-{
-//    struct rb_root cb_tree_A = RB_ROOT;
-//    struct rb_root cb_tree_B = RB_ROOT;
-
-
-//    // delete
-//    struct syscall *data = mysearch(&root, "walrus");
-//    if (data)
-//    {
-//        rb_erase(&data->node, &root);
-//        myfree(data);
-//    }
-    struct syscall c1 = {
-        .id = 1,
-        .func="12345"
-    };
-    struct syscall c2 = {
-        .id = 2,
-        .func="67890"
-    };
-
-    my_insert(&root,&c1);
-    my_insert(&root,&c2);
-
-    // for
-//    struct rb_node *node;
-    for (struct rb_node *node = rb_first(&root); node; node = rb_next(node))
-        printf("key=%s\n", rb_entry(node, struct syscall, node)->func);
-
-
-    return 0;
-}
-
 int main(int argc, char** argv) {
     // 测试动态获取寄存器偏移
 //    struct regs_struct_offset offset;
 //    init();
 //    return 1;
     // 测试map容器
-    testMap();
-    return 1;
+
 
 //    SysMon();
     pid_t target_pid = atoi(argv[1]);
