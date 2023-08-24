@@ -38,6 +38,28 @@ int cbInsert(struct syscall *data)
     return 0;
 }
 
+void cbClear()
+{
+    ////使free立即将内存返还给系统
+    //#include <malloc.h>
+    //int ret = mallopt(M_MXFAST, 0);
+    //if (1 == ret) printf("mallopt set M_MXFAST = %d succeed\n", 0);
+    //else printf("mallopt set M_MXFAST = %d failed, errno: %d, desc: %s\n", 0, errno, strerror(errno));
+
+    while (1)
+    {
+        struct rb_node *node = NULL;
+        node = rb_first(&g_cbTree);
+        if(!node) break;
+
+        struct syscall *call = NULL;
+        call = rb_entry(node, struct syscall, node);
+        rb_erase(node, &g_cbTree);
+
+        if(call) free(call);
+        else printf("call is NULL\n");
+    }
+}
 
 //    // delete
 //    struct syscall *data = mysearch(&root, "walrus");

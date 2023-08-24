@@ -1,5 +1,6 @@
 #pragma once
 #include "rbtree.h"
+#include <stdlib.h>
 
 extern struct rb_root g_cbTree;
 struct syscall
@@ -14,4 +15,5 @@ struct syscall
 
 struct syscall *cbSearch(int id);
 int cbInsert(struct syscall *data);
+void cbClear();
 
