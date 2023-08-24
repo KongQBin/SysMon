@@ -1,6 +1,8 @@
 #include "init.h"
+struct regs_struct_offset g_regsOffset;
 int init()
 {
+    memset(&g_regsOffset,-1,sizeof(g_regsOffset));
     int ret = initRegsOffset();
     if(!ret) initCallbackTree();
     printf("current process id = %d\ninitRegsOffset ret = %d\n",getpid(),ret);
@@ -14,7 +16,7 @@ int init()
 
 int initRegsOffset()
 {
-    int ret = 0;
+    int ret = -1;
     const char *msg = "test write";
     const char *msg2 = "abcdefghijklmn";
     int msgLen = strlen(msg);
@@ -25,7 +27,7 @@ int initRegsOffset()
     if(pipe(fd) < 0)
     {
         printf("pipe err : %s\n",strerror(errno));
-        return -1;
+        return -2;
     }
 
     fcntl(fd[0],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);//设置fd为阻塞模式
@@ -60,11 +62,11 @@ int initRegsOffset()
 //        printf("son pid is %d\n",pid);
         if (ptrace(PTRACE_ATTACH, pid, 0, 0) == -1) {
             perror("ptrace attach");
-            return -2;
+            return -3;
         }
 //        if(ptrace(PTRACE_SYSEMU, pid, 0, 0) == -1) {
 ////            perror("ptrace sysemu");
-////            return -3;
+////            return -4;
 //        }
 
         struct user_regs_struct regs;
@@ -72,11 +74,10 @@ int initRegsOffset()
 
         int sonFd = -1;
         if(read(pr,&sonFd,sizeof(sonFd)) != sizeof(sonFd))
-            return -4;
+            return -5;
 
 //        printf("sonFd = %d\n",sonFd);
         int whileNum = 20;
-        memset(&g_regsOffset,0,sizeof(struct regs_struct_offset));
         while(--whileNum)
         {
             wait(0);
@@ -87,15 +88,15 @@ int initRegsOffset()
             for(int i=0;i<regsNum;++i)
             {
                 // 命中返回值
-                if(g_regsOffset.ret == 0
+                if(g_regsOffset.ret == -1
                     && pRegs[i] == -38) g_regsOffset.ret = i;
                 else
                 {
                     // 命中第一个参数
-                    if(g_regsOffset.argv1 == 0
+                    if(g_regsOffset.argv1 == -1
                         && pRegs[i] == sonFd) g_regsOffset.argv1 = i;
                     // 命中第二个参数
-                    if(g_regsOffset.argv2 == 0)
+                    if(g_regsOffset.argv2 == -1)
                     {
                         long tmp = ptrace(PTRACE_PEEKDATA, pid, pRegs[i], NULL);
                         if(!memcmp(&tmp,msg,sizeof(long))
@@ -103,7 +104,7 @@ int initRegsOffset()
                             g_regsOffset.argv2 = i;
                     }
                     // 命中第三个参数
-                    if(g_regsOffset.argv3 == 0
+                    if(g_regsOffset.argv3 == -1
                         && (pRegs[i] == msgLen
                             || pRegs[i] == msgLen2))
                     {
@@ -112,8 +113,8 @@ int initRegsOffset()
                 }
             }
 
-            if(g_regsOffset.ret != 0 && g_regsOffset.argv1 != 0
-                && g_regsOffset.argv2 != 0 && g_regsOffset.argv3 != 0)
+            if(g_regsOffset.ret != -1 && g_regsOffset.argv1 != -1
+                && g_regsOffset.argv2 != -1 && g_regsOffset.argv3 != -1)
             {
                 for(int j=0;j<regsNum;++j)
                 {
@@ -125,6 +126,7 @@ int initRegsOffset()
                         if(pRegs[j] == 1 || pRegs[j] == 4)
                         {
                             g_regsOffset.call = j;
+                            printf("call id is %d\n",pRegs[j]);
                             break;
                         }
                     }
@@ -133,9 +135,9 @@ int initRegsOffset()
 
             if(ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1 ) {
                 perror("ptrace syscall");
-                ret = -7;
+                ret = -6;
             }
-            if(g_regsOffset.call)
+            if(g_regsOffset.call != -1)
             {
                 ret = 0;
                 break;

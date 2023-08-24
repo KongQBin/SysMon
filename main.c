@@ -126,6 +126,8 @@ int main(int argc, char** argv) {
 //    return 1;
     // 测试map容器
     init();
+    return 0;
+
     pid_t target_pid = atoi(argv[1]);
     // 附加到被传入PID的进程
     if (ptrace(PTRACE_ATTACH, target_pid, 0, 0) == -1) {

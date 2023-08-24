@@ -28,7 +28,7 @@ struct regs_struct_offset
     int argv5;      //参数五
     int argv6;      //参数六
 };
-struct regs_struct_offset g_regsOffset;
+extern struct regs_struct_offset g_regsOffset;
 int initRegsOffset();       // 初始化寄存器偏移
 int initCallbackTree();     // 初始化系统调用回调树
 int init();

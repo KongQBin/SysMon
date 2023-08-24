@@ -21,7 +21,9 @@ aux_source_directory(./callbacks SRC_LIST)
 #     /lib64/libselinux.so
 #     # /lib64/libseccomp.so.2
 # )
+set(BUILD_TYPE_DEBUG on)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
 add_executable(${PROJECT_NAME} ${SRC_LIST}
     ./cbtree/cbtree.h
     ./cbtree/kmap/rbtree.h
