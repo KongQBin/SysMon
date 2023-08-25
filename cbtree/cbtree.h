@@ -1,6 +1,7 @@
 #pragma once
 #include "rbtree.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 extern struct rb_root g_cbTree;
 struct syscall

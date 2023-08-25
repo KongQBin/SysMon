@@ -1,4 +1,5 @@
 project(SysMon)
+cmake_minimum_required(VERSION 2.9)
 include_directories(
     ./
     ./cbtree
@@ -9,20 +10,16 @@ include_directories(
     /usr/local/include
     )
 
-cmake_minimum_required(VERSION 2.8)
-aux_source_directory(. SRC_LIST)
-aux_source_directory(./init SRC_LIST)
-aux_source_directory(./cbtree SRC_LIST)
-aux_source_directory(./cbtree/kmap SRC_LIST)
-aux_source_directory(./callbacks SRC_LIST)
+FILE(GLOB SRC_LIST
+    "docs/*.h"
+    "*.c" "*.h"
+    "init/*.c" "init/*.h"
+    "cbtree/*.c" "cbtree/*.h"
+    "cbtree/kmap/*.c" "cbtree/kmap/*.h"
+    "callbacks/*.c" "callbacks/*.h"
+)
 
 set(BUILD_TYPE_DEBUG on)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
-add_executable(${PROJECT_NAME} ${SRC_LIST}
-    ./cbtree/cbtree.h
-    ./cbtree/kmap/rbtree.h
-    ./init/init.h
-    ./callbacks/callbacks.h
-    ./callbacks/write.h
-    )
+add_executable(${PROJECT_NAME} ${SRC_LIST})

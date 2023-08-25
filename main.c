@@ -1,7 +1,7 @@
 #include "init.h"
 #include "callbacks.h"
 
-void print_argv(pid_t child, struct user_regs_struct *reg)
+void printArgv(pid_t child, struct user_regs_struct *reg)
 {
     long temp_long;
     char message[1000] = {0};
@@ -27,7 +27,7 @@ void print_argv(pid_t child, struct user_regs_struct *reg)
      ptrace(PTRACE_SETREGS, child, NULL, reg);
 }
 
-void print_user_regs_struct(struct user_regs_struct *reg)
+void printUserRegsStruct(struct user_regs_struct *reg)
 {
     // 被监控的系统调用的参数
 //    printf("First argument: %llu\n", reg->rdi);
@@ -50,7 +50,7 @@ void print_user_regs_struct(struct user_regs_struct *reg)
      printf("\n");
 }
 
-void mon_sys_call(pid_t child)
+void monSysCall(pid_t child)
 {
      struct user_regs_struct reg;
      memset(&reg,0,sizeof(reg));
@@ -58,7 +58,7 @@ void mon_sys_call(pid_t child)
      ptrace(PTRACE_GETREGS, child, 0, &reg);
 
      long *pregs = (long*)&reg;
-     //    print_user_regs_struct(&reg);
+     //    printUserRegsStruct(&reg);
      struct syscall *call = cbSearch(CALL(pregs));
      if(!call)
      {
@@ -68,7 +68,7 @@ void mon_sys_call(pid_t child)
      IS_BEGIN(reg) ? ((long (*)(pid_t,long *))call->cBegin)(child,pregs) : ((long (*)(pid_t,long *))call->cEnd)(child,pregs);
 }
 
-void ptrace_hook(pid_t child) {
+void ptraceHook(pid_t child) {
     // 被监控的进程id
     printf("called by %d\n", child);
     // PTRACE_SYSEMU使得child进程暂停在每次系统调用入口处。
@@ -93,8 +93,7 @@ void ptrace_hook(pid_t child) {
                 continue;
             }
         }
-
-        mon_sys_call(child);
+        monSysCall(child);
         long ret = ptrace(PTRACE_SYSCALL, child, 0, 0);
         if(ret < 0)
         {
@@ -113,7 +112,7 @@ int main(int argc, char** argv)
         printf("PTRACE_ATTACH : %s(%d)\n",strerror(errno),errno);
         exit(1);
     }
-    ptrace_hook(target_pid);
+    ptraceHook(target_pid);
     // DETACH注销我们的跟踪,target process恢复运行
     ptrace(PTRACE_DETACH, target_pid, 0, 0);
     unInit();
