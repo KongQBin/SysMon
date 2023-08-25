@@ -50,51 +50,37 @@ void print_user_regs_struct(struct user_regs_struct *reg)
      printf("\n");
 }
 
-void mon_sys_call(pid_t child, struct user_regs_struct *reg)
+void mon_sys_call(pid_t child)
 {
-//    print_user_regs_struct(reg);
-    switch (reg->orig_rax) {
-    case __NR_read:
+     struct user_regs_struct reg;
+     memset(&reg,0,sizeof(reg));
+     // 获取子进程寄存器的值
+     ptrace(PTRACE_GETREGS, child, 0, &reg);
 
-        break;
-    case __NR_write:
-        IS_BEGIN(reg) ? writeCallBegin(child,(long*)reg) : writeCallEnd(child,(long*)reg);
-//        write_call_end(child,reg);
-
-//        print_argv(child,reg);
-//        print_user_regs_struct(reg);
-        break;
-    case __NR_open:
-
-        break;
-    case __NR_close:
-        break;
-    case __NR_openat:
-//        print_argv(child,reg);
-        break;
-    case __NR_kill:
-        printf("func is kill !!!!\n");
-        //        print_argv(child,reg);
-        break;
-    default:
-        printf("reg->orig_rax is %d\n",reg->orig_rax);
-        break;
-    }
+     long *pregs = (long*)&reg;
+     //    print_user_regs_struct(&reg);
+     struct syscall *call = cbSearch(CALL(pregs));
+     if(!call)
+     {
+         printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
+         return;
+     }
+     IS_BEGIN(reg) ? ((long (*)(pid_t,long *))call->cBegin)(child,pregs) : ((long (*)(pid_t,long *))call->cEnd)(child,pregs);
 }
 
 void ptrace_hook(pid_t child) {
     // 被监控的进程id
     printf("called by %d\n", child);
-    struct user_regs_struct reg;
     // PTRACE_SYSEMU使得child进程暂停在每次系统调用入口处。
     ptrace(PTRACE_SYSEMU, child, 0, 0);
     int status,signal_number;
-    while (1) {
+    while (1)
+    {
         //        wait(0);
-
         // 等待子进程受到跟踪因为下一个系统调用而暂停
         waitpid(child,&status,0);
-        if (WIFSTOPPED(status)) {
+        if (WIFSTOPPED(status))
+        {
             // Check if the child received a signal
             signal_number = WSTOPSIG(status);
             printf("signal is %d\n",signal_number);
@@ -102,46 +88,38 @@ void ptrace_hook(pid_t child) {
             if(signal_number == 15 || signal_number == 2)
             {
                 if (ptrace(PTRACE_CONT, child, NULL, signal_number) == -1) {
-                    perror("ptrace continue");
+                    printf("PTRACE_CONT : %s(%d)\n",strerror(errno),errno);
                 }
-                exit(1);
                 continue;
             }
         }
 
-        memset(&reg,0,sizeof(reg));
-        // 获取子进程寄存器的值
-        ptrace(PTRACE_GETREGS, child, 0, &reg);
-        mon_sys_call(child,&reg);
+        mon_sys_call(child);
         long ret = ptrace(PTRACE_SYSCALL, child, 0, 0);
         if(ret < 0)
-            printf("%s\n",strerror(errno));
+        {
+            printf("PTRACE_SYSCALL : %s(%d)\n",strerror(errno),errno);
+            if(errno == 3) break;   //No such process
+        }
     }
 }
 
-int main(int argc, char** argv) {
-    // 测试动态获取寄存器偏移
-//    struct regs_struct_offset offset;
-//    init();
-//    return 1;
-    // 测试map容器
+int main(int argc, char** argv)
+{
     init();
-    return 0;
-
     pid_t target_pid = atoi(argv[1]);
     // 附加到被传入PID的进程
     if (ptrace(PTRACE_ATTACH, target_pid, 0, 0) == -1) {
-        perror("ptrace attach");
+        printf("PTRACE_ATTACH : %s(%d)\n",strerror(errno),errno);
         exit(1);
     }
-
-    // 放过发往子进程的信号
-    // 但经测，貌似不起作用
-//     ptrace(PTRACE_SETOPTIONS, target_pid, NULL, PTRACE_O_TRACESYSGOOD);
-
-
     ptrace_hook(target_pid);
     // DETACH注销我们的跟踪,target process恢复运行
     ptrace(PTRACE_DETACH, target_pid, 0, 0);
+    unInit();
     return 0;
 }
+
+// 放过发往子进程的信号
+// 但经测，貌似不起作用
+//     ptrace(PTRACE_SETOPTIONS, target_pid, NULL, PTRACE_O_TRACESYSGOOD);

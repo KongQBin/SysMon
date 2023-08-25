@@ -12,15 +12,25 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include "cbtree.h"
+#include "callbacks.h"
 
 #ifndef PTRACE_SYSEMU
     #define PTRACE_SYSEMU   31
 #endif
 
-struct regs_struct_offset
+#define RET(regs)    regs[g_regsOffset.ret]
+#define CALL(regs)   regs[g_regsOffset.call]
+#define ARGV_1(regs) regs[g_regsOffset.argv1]
+#define ARGV_2(regs) regs[g_regsOffset.argv2]
+#define ARGV_3(regs) regs[g_regsOffset.argv3]
+#define ARGV_4(regs) regs[g_regsOffset.argv4]
+#define ARGV_5(regs) regs[g_regsOffset.argv5]
+#define ARGV_6(regs) regs[g_regsOffset.argv6]
+
+struct regs_offset
 {
-    int call;       //系统调用号
     int ret;        //返回值
+    int call;       //系统调用号
     int argv1;      //参数一
     int argv2;      //参数二
     int argv3;      //参数三
@@ -28,10 +38,10 @@ struct regs_struct_offset
     int argv5;      //参数五
     int argv6;      //参数六
 };
-extern struct regs_struct_offset g_regsOffset;
-int initRegsOffset();       // 初始化寄存器偏移
-int initCallbackTree();     // 初始化系统调用回调树
+extern struct regs_offset g_regsOffset;
 int init();
+int unInit();
+
 #endif // INIT_H
 
 

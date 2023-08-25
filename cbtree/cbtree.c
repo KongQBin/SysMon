@@ -1,6 +1,7 @@
 #include "cbtree.h"
 
-struct rb_root g_cbTree = RB_ROOT;
+//struct rb_root g_cbTree = RB_ROOT;
+struct rb_root g_cbTree = {NULL,};
 struct syscall *cbSearch(int id)
 {
     struct rb_node *node = g_cbTree.rb_node;

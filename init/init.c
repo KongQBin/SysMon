@@ -1,8 +1,9 @@
 #include "init.h"
-struct regs_struct_offset g_regsOffset;
+struct regs_offset g_regsOffset;
+int initRegsOffset();       // 初始化寄存器偏移
+int initCallbackTree();     // 初始化系统调用回调树
 int init()
 {
-    memset(&g_regsOffset,-1,sizeof(g_regsOffset));
     int ret = initRegsOffset();
     if(!ret) initCallbackTree();
     printf("current process id = %d\ninitRegsOffset ret = %d\n",getpid(),ret);
@@ -12,6 +13,23 @@ int init()
     printf("offset.argv2 = %d\n",g_regsOffset.argv2);
     printf("offset.argv3 = %d\n",g_regsOffset.argv3);
     return ret;
+}
+
+int unInit()
+{
+    cbClear();
+    return 0;
+}
+
+int initCallbackTree()
+{
+    struct syscall *call = NULL;
+    call = calloc(1,sizeof(struct syscall));
+    call->id = ID_WRITE;
+    call->cBegin = writeCallBegin;
+    call->cEnd = writeCallEnd;
+    cbInsert(call);
+    return 0;
 }
 
 int initRegsOffset()
@@ -78,6 +96,7 @@ int initRegsOffset()
 
 //        printf("sonFd = %d\n",sonFd);
         int whileNum = 20;
+        memset(&g_regsOffset,-1,sizeof(g_regsOffset));
         while(--whileNum)
         {
             wait(0);
@@ -152,9 +171,4 @@ int initRegsOffset()
     if(pr >= 0) close(pr);
     if(pw >= 0) close(pw);
     return ret;
-}
-
-int initCallbackTree()
-{
-    return 0;
 }

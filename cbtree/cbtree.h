@@ -7,13 +7,12 @@ struct syscall
 {
     struct rb_node node;
     int   id;           // 系统调用号
-
-    // long (*func)(long *); 函数指针指向的函数
+    // long (*func)(pid_t,long *); 函数指针指向的函数
     void *cBegin;       // call begin 在执行系统调用前需要调用的函数
     void *cEnd;         // call end   在执行系统调用后需要调用的函数
 };
 
-struct syscall *cbSearch(int id);
-int cbInsert(struct syscall *data);
-void cbClear();
+struct syscall* cbSearch(int id);   //查询
+int cbInsert(struct syscall *data); //插入
+void cbClear();                     //清空
 
