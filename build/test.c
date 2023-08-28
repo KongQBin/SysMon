@@ -24,6 +24,13 @@ int main()
         printf("1write ret is %d\n",3);
         if(ret < 0)
             printf("write err is %d\n",strerror(errno));
+        {
+            // 用于查看是否存在描述符泄漏
+            printf("close fd is %d\n",fd);
+            // 结果fd在监控进程write中被修改为1不影响当前fd的值
+            // 原因是由于调用过程进行了值拷贝，监控进程修改的仅仅是被拷贝的那一份
+            // 故不存在描述符泄漏的问题
+        }
         close(fd);
 	}
 	return 0;
