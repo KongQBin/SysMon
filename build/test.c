@@ -6,24 +6,25 @@
 #include <errno.h>
 int main()
 {
-	int i = 99999;
-	printf("%d\n",getpid());
-	time_t begin, end;
+    printf("%d\n",getpid());
+
+    char *msg = (char*)calloc(1,5);
+    memcpy(msg,"12345",5);
+    int i = 999;
 	while(--i)
 	{
-		//time(&begin);
-		sleep(3);
-		int fd = open("/home/user/test.txt",O_RDWR|O_CREAT,0600);
-		if(fd < 0)
-		{
-			printf("open err : %s\n",strerror(errno));
-			break;
-		}
-		int ret = write(fd,"12345",strlen("12345"));
-		printf("%d\n",ret);
-		close(fd);
-		//time(&end);
-		//printf("while time = %lld\n",end - begin);
+        sleep(2);
+        int fd = open("/home/user/test.txt",O_RDWR|O_CREAT,0600);
+        if(fd < 0)
+        {
+            printf("open err : %s\n",strerror(errno));
+            break;
+        }
+        int ret = write(fd,msg,5);
+        printf("1write ret is %d\n",3);
+        if(ret < 0)
+            printf("write err is %d\n",strerror(errno));
+        close(fd);
 	}
 	return 0;
 }

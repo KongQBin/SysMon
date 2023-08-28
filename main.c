@@ -62,9 +62,10 @@ void monSysCall(pid_t child)
      struct syscall *call = cbSearch(CALL(pregs));
      if(!call)
      {
-         printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
+//         printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
          return;
      }
+     printf("Call %d\n",CALL(pregs));
      IS_BEGIN(reg) ? ((long (*)(pid_t,long *))call->cBegin)(child,pregs) : ((long (*)(pid_t,long *))call->cEnd)(child,pregs);
 }
 
@@ -76,14 +77,14 @@ void ptraceHook(pid_t child) {
     int status,signal_number;
     while (1)
     {
-        //        wait(0);
+//         wait(0);
         // 等待子进程受到跟踪因为下一个系统调用而暂停
         waitpid(child,&status,0);
         if (WIFSTOPPED(status))
         {
             // Check if the child received a signal
             signal_number = WSTOPSIG(status);
-            printf("signal is %d\n",signal_number);
+//            printf("signal is %d\n",signal_number);
             // kill -15 || kill -2(ctrl + c)
             if(signal_number == 15 || signal_number == 2)
             {
