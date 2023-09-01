@@ -4,15 +4,15 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
-int main()
-{
-    printf("%d\n",getpid());
 
+
+void testWrite()
+{
     char *msg = (char*)calloc(1,5);
     memcpy(msg,"12345",5);
     int i = 999;
-	while(--i)
-	{
+    while(--i)
+    {
         sleep(2);
         int fd = open("/home/user/test.txt",O_RDWR|O_CREAT,0600);
         if(fd < 0)
@@ -32,6 +32,33 @@ int main()
             // 故不存在描述符泄漏的问题
         }
         close(fd);
-	}
+    }
+}
+
+void testFork()
+{
+    sleep(8);
+    pid_t pid = fork();
+    if(pid == 0)
+    {
+        printf("this is son! pid is %d\n",getpid());
+        int i = 10;
+        while(--i) sleep(1);
+        exit(0);
+    }
+    else if(pid > 0)
+    {
+        printf("this is parent! pid is %d\n",getpid());
+        int i = 12;
+        while(--i) sleep(1);
+    }
+    else
+        printf("fork error : %s\n",strerror(errno));
+}
+
+int main()
+{
+    printf("%d\n",getpid());
+    testFork();
 	return 0;
 }
