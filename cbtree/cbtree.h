@@ -9,8 +9,8 @@ struct syscall
     struct rb_node node;
     int   id;           // 系统调用号
     // long (*func)(pid_t,long *); 函数指针指向的函数
-    void *cBegin;       // call begin 在执行系统调用前需要调用的函数
-    void *cEnd;         // call end   在执行系统调用后需要调用的函数
+    void *cbf;          // call begin func     在执行系统调用前需要调用的函数
+    void *cef;          // call end   func     在执行系统调用后需要调用的函数
 };
 
 struct syscall* cbSearch(int id);   //查询

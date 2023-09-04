@@ -1,4 +1,3 @@
-#include "init.h"
 #include "callbacks.h"
 
 void printArgv(pid_t child, struct user_regs_struct *reg)
@@ -59,14 +58,16 @@ void monSysCall(pid_t child)
 
      long *pregs = (long*)&reg;
      //    printUserRegsStruct(&reg);
-     struct syscall *call = cbSearch(CALL(pregs));
+     // 查找系统调用（如果该系统调用被拒绝服务，那么查询时要还原回去）
+     printf("S Call %d\n",CALL(pregs));
+     struct syscall *call = cbSearch(~DOS & CALL(pregs));
      if(!call)
      {
 //         printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
          return;
      }
-     printf("Call %d\n",CALL(pregs));
-     IS_BEGIN(reg) ? ((long (*)(pid_t,long *))call->cBegin)(child,pregs) : ((long (*)(pid_t,long *))call->cEnd)(child,pregs);
+     printf("E Call %d\n",CALL(pregs));
+     IS_BEGIN(pregs) ? ((long (*)(pid_t,long *))call->cbf)(child,pregs) : ((long (*)(pid_t,long *))call->cef)(child,pregs);
 }
 
 void ptraceHook(pid_t child) {
@@ -106,7 +107,12 @@ void ptraceHook(pid_t child) {
 
 int main(int argc, char** argv)
 {
-    init();
+    int ret = init();
+    if(!ret) ret = initCallbackTree(ID_WRITE,cbWrite,ceWrite);
+    if(!ret) ret = initCallbackTree(ID_FORK,cbFork,ceFork);
+    if(!ret) ret = initCallbackTree(ID_CLONE,cbClone,ceClone);
+    if(!ret) ret = initCallbackTree(ID_EXECVE,cbExecve,ceExecve);
+
     pid_t target_pid = atoi(argv[1]);
     // 附加到被传入PID的进程
     if (ptrace(PTRACE_ATTACH, target_pid, 0, 0) == -1) {

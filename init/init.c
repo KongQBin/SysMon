@@ -1,11 +1,9 @@
 #include "init.h"
 struct regs_offset g_regsOffset;
 int initRegsOffset();       // 初始化寄存器偏移
-int initCallbackTree();     // 初始化系统调用回调树
 int init()
 {
     int ret = initRegsOffset();
-    if(!ret) initCallbackTree();
     printf("current process id = %d\ninitRegsOffset ret = %d\n",getpid(),ret);
     printf("offset.call = %d\n",g_regsOffset.call);
     printf("offset.ret = %d\n",g_regsOffset.ret);
@@ -21,13 +19,14 @@ int unInit()
     return 0;
 }
 
-int initCallbackTree()
+int initCallbackTree(long id,void *cbf,void *cef)
 {
     struct syscall *call = NULL;
     call = calloc(1,sizeof(struct syscall));
-    call->id = ID_WRITE;
-    call->cBegin = writeCallBegin;
-    call->cEnd = writeCallEnd;
+    if(!call) return -1;
+    call->id = id;
+    call->cbf = cbf;
+    call->cef = cef;
     cbInsert(call);
     return 0;
 }
@@ -39,7 +38,6 @@ int initRegsOffset()
     const char *msg2 = "abcdefghijklmn";
     int msgLen = strlen(msg);
     int msgLen2 = strlen(msg2);
-
 
     int fd[2] = {0};
     if(pipe(fd) < 0)
@@ -141,7 +139,7 @@ int initRegsOffset()
                     if(j != g_regsOffset.ret && j != g_regsOffset.argv1
                         && j != g_regsOffset.argv2 && j != g_regsOffset.argv3)
                     {
-                        // write调用号 在有些内核等于 4 有些内核等于 1
+                        // write调用号 32位系统等于4 64位系统等于1
                         if(pRegs[j] == 1 || pRegs[j] == 4)
                         {
                             g_regsOffset.call = j;

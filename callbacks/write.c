@@ -1,6 +1,6 @@
 #include "write.h"
 
-long writeCallBegin(pid_t pid, long *regs)
+long cbWrite(pid_t pid, long *regs)
 {
     long ret = 0;
     long temp_long;
@@ -48,7 +48,7 @@ long writeCallBegin(pid_t pid, long *regs)
     return 0;
 }
 
-long writeCallEnd(pid_t pid, long *regs)
+long ceWrite(pid_t pid, long *regs)
 {
     long temp_long;
     char message[1000] = {0};

@@ -1,7 +1,5 @@
 #ifndef INIT_H
 #define INIT_H
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -12,7 +10,6 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include "cbtree.h"
-#include "callbacks.h"
 
 #ifndef PTRACE_SYSEMU
     #define PTRACE_SYSEMU   31
@@ -40,6 +37,7 @@ struct regs_offset
 };
 extern struct regs_offset g_regsOffset;
 int init();
+int initCallbackTree(long id,void *cbf,void *cef);     // 初始化系统调用回调树
 int unInit();
 
 #endif // INIT_H
