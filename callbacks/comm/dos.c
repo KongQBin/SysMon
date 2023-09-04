@@ -1,4 +1,5 @@
-#include "dos.h"
+#include "callbacks.h"
+
 inline long cbDos(pid_t pid, long *regs)
 {
     // 修改系统调用号

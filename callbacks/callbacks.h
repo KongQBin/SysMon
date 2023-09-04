@@ -68,6 +68,10 @@
  *  就比如修改write函数中的参数1，也就是fd的值，并不会造成后续调用close导致文件描述符泄漏的问题
  */
 
+// 拒绝服务
+extern long cbDos(pid_t pid, long *regs);  //设置拒绝服务
+extern long ceDos(pid_t pid, long *regs);  //返回拒绝服务
+// 提供服务
 extern long cbWrite(pid_t pid, long *regs);
 extern long ceWrite(pid_t pid, long *regs);
 
