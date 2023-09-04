@@ -8,7 +8,7 @@ long cbClone(pid_t pid, long *regs)
 
 long ceClone(pid_t pid, long *regs)
 {
-    if(CALL(regs) & DOS)
+    if(CALL(regs) & dos())
     {
         ceDos(pid,regs);
         return 0;

@@ -1,3 +1,4 @@
+#pragma once
 /*
  * PTRACE_POKEDATA：该标志用于将数据写入被跟踪进程的内存。
  * 你可以使用它来修改进程的数据段（data segment）或堆（heap）中的任意内存位置。

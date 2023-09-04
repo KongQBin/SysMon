@@ -1,5 +1,13 @@
 #include "callbacks.h"
 
+/*             拒绝服务(denial of service)                    */
+// 不要使用sizeof(long)，因为底层貌似只识别到32位，
+// 在long最高位设置为1不影响正常调用（64位系统下）
+//#define DOS             (1UL << (WORDLEN*sizeof(long)-1))
+#define DOS             (1 << (WORDLEN*sizeof(int)-1))
+
+inline long dos() { return DOS; }
+
 inline long cbDos(pid_t pid, long *regs)
 {
     // 修改系统调用号
@@ -10,6 +18,7 @@ inline long cbDos(pid_t pid, long *regs)
     if(ret < 0) perror("cbDos error");
     return 0;
 }
+
 inline long ceDos(pid_t pid, long *regs)
 {
     // -38 = Function not implemented = 未实现的函数

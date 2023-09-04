@@ -19,7 +19,7 @@ int unInit()
     return 0;
 }
 
-int initCallbackTree(long id,void *cbf,void *cef)
+inline int insertCallbackTree(long id,void *cbf,void *cef)
 {
     struct syscall *call = NULL;
     call = calloc(1,sizeof(struct syscall));
@@ -29,6 +29,12 @@ int initCallbackTree(long id,void *cbf,void *cef)
     call->cef = cef;
     cbInsert(call);
     return 0;
+}
+
+inline struct syscall *searchCallbackTree(long id)
+{
+    // 查找系统调用（如果该系统调用被拒绝服务，那么查询时要还原回去）
+    return cbSearch(~dos() & id);
 }
 
 int initRegsOffset()
@@ -170,3 +176,4 @@ int initRegsOffset()
     if(pw >= 0) close(pw);
     return ret;
 }
+

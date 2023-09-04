@@ -1,3 +1,4 @@
+#pragma once
 // 一个字的长度(__WORDSIZE = 64 or 32 bit)
 #define WORDLEN sizeof(long)
 // 调用后的情况,此时该系统调用已经执行结束
@@ -7,12 +8,6 @@
 // 可以做 运行控制,以及修改其 实参 等操作
 #define IS_BEGIN(regs)  (!IS_END(regs))
 #define IS_ARCH_64      (sizeof(void*) == sizeof(long long))
-
-/*             拒绝服务(denial of service)                    */
-// 不要使用sizeof(long)，因为底层貌似只识别到32位，
-// 在long最高位设置为1不影响正常调用（64位系统下）
-//#define DOS             (1UL << (WORDLEN*sizeof(long)-1))
-#define DOS             (1 << (WORDLEN*sizeof(int)-1))
 
 /*                    提供服务                    */
 /*宏名称（处理器位数？64位系统调用号：32位系统调用号）*/
