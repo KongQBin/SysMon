@@ -10,5 +10,9 @@ long cbFork(pid_t pid, long *regs)
 
 long ceFork(pid_t pid, long *regs)
 {
+    if(RET(regs) > 0)
+    {
+        // 再拉起一个监控线程去进行监控
+    }
     return 0;
 }

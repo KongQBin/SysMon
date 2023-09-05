@@ -35,12 +35,11 @@ struct regs_offset
     int argv5;      //参数五
     int argv6;      //参数六
 };
-extern long dos();
 extern struct regs_offset g_regsOffset;
 int init();
-int insertCallbackTree(long id,void *cbf,void *cef);     // 初始化系统调用回调树
-struct syscall* searchCallbackTree(long id);
-int unInit();
+int insertCallbackTree(struct rb_root *tree,long id,void *cbf,void *cef);     // 初始化系统调用回调树
+struct syscall* searchCallbackTree(struct rb_root *tree,long id);
+int unInit(struct rb_root *tree);
 
 #endif // INIT_H
 

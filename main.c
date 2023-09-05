@@ -49,7 +49,7 @@ void printUserRegsStruct(struct user_regs_struct *reg)
      printf("\n");
 }
 
-void monSysCall(pid_t child)
+void monSysCall(struct rb_root *cbTree,pid_t child)
 {
      struct user_regs_struct reg;
      memset(&reg,0,sizeof(reg));
@@ -59,7 +59,7 @@ void monSysCall(pid_t child)
      long *pregs = (long*)&reg;
      //    printUserRegsStruct(&reg);
      printf("S Call %d\n",CALL(pregs));
-     struct syscall *call = searchCallbackTree(CALL(pregs));
+     struct syscall *call = searchCallbackTree(cbTree,CALL(pregs));
      if(!call)
      {
 //         printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
@@ -69,7 +69,7 @@ void monSysCall(pid_t child)
      IS_BEGIN(pregs) ? ((long (*)(pid_t,long *))call->cbf)(child,pregs) : ((long (*)(pid_t,long *))call->cef)(child,pregs);
 }
 
-void ptraceHook(pid_t child) {
+void ptraceHook(struct rb_root *cbTree,pid_t child) {
     // 被监控的进程id
     printf("called by %d\n", child);
     // PTRACE_SYSEMU使得child进程暂停在每次系统调用入口处。
@@ -94,7 +94,7 @@ void ptraceHook(pid_t child) {
                 continue;
             }
         }
-        monSysCall(child);
+        monSysCall(cbTree,child);
         long ret = ptrace(PTRACE_SYSCALL, child, 0, 0);
         if(ret < 0)
         {
@@ -107,10 +107,12 @@ void ptraceHook(pid_t child) {
 int main(int argc, char** argv)
 {
     int ret = init();
-    if(!ret) ret = insertCallbackTree(ID_WRITE,cbWrite,ceWrite);
-    if(!ret) ret = insertCallbackTree(ID_FORK,cbFork,ceFork);
-    if(!ret) ret = insertCallbackTree(ID_CLONE,cbClone,ceClone);
-    if(!ret) ret = insertCallbackTree(ID_EXECVE,cbExecve,ceExecve);
+    struct rb_root *cbTree = calloc(1,sizeof(struct rb_root));
+    if(!cbTree) return -1;
+    if(!ret) ret = insertCallbackTree(cbTree,ID_WRITE,cbWrite,ceWrite);
+    if(!ret) ret = insertCallbackTree(cbTree,ID_FORK,cbFork,ceFork);
+    if(!ret) ret = insertCallbackTree(cbTree,ID_CLONE,cbClone,ceClone);
+    if(!ret) ret = insertCallbackTree(cbTree,ID_EXECVE,cbExecve,ceExecve);
 
     pid_t target_pid = atoi(argv[1]);
     // 附加到被传入PID的进程
@@ -118,10 +120,10 @@ int main(int argc, char** argv)
         printf("PTRACE_ATTACH : %s(%d)\n",strerror(errno),errno);
         exit(1);
     }
-    ptraceHook(target_pid);
+    ptraceHook(cbTree,target_pid);
     // DETACH注销我们的跟踪,target process恢复运行
     ptrace(PTRACE_DETACH, target_pid, 0, 0);
-    unInit();
+    unInit(cbTree);
     return 0;
 }
 

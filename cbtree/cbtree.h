@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-extern struct rb_root g_cbTree;
+//extern struct rb_root g_cbTree;
 struct syscall
 {
     struct rb_node node;
@@ -13,7 +13,7 @@ struct syscall
     void *cef;          // call end   func     在执行系统调用后需要调用的函数
 };
 
-struct syscall* cbSearch(int id);   //查询
-int cbInsert(struct syscall *data); //插入
-void cbClear();                     //清空
+struct syscall* cbSearch(struct rb_root *tree,int id);   //查询
+int cbInsert(struct rb_root *tree,struct syscall *data); //插入
+void cbClear(struct rb_root *tree);                     //清空
 

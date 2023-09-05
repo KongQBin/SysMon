@@ -1,6 +1,7 @@
 #include "init.h"
 struct regs_offset g_regsOffset;
-int initRegsOffset();       // 初始化寄存器偏移
+extern long dos();
+extern int initRegsOffset();       // 初始化寄存器偏移
 int init()
 {
     int ret = initRegsOffset();
@@ -13,13 +14,13 @@ int init()
     return ret;
 }
 
-int unInit()
+int unInit(struct rb_root *tree)
 {
-    cbClear();
+    cbClear(tree);
     return 0;
 }
 
-inline int insertCallbackTree(long id,void *cbf,void *cef)
+inline int insertCallbackTree(struct rb_root *tree,long id,void *cbf,void *cef)
 {
     struct syscall *call = NULL;
     call = calloc(1,sizeof(struct syscall));
@@ -27,14 +28,14 @@ inline int insertCallbackTree(long id,void *cbf,void *cef)
     call->id = id;
     call->cbf = cbf;
     call->cef = cef;
-    cbInsert(call);
+    cbInsert(tree,call);
     return 0;
 }
 
-inline struct syscall *searchCallbackTree(long id)
+inline struct syscall* searchCallbackTree(struct rb_root *tree,long id)
 {
     // 查找系统调用（如果该系统调用被拒绝服务，那么查询时要还原回去）
-    return cbSearch(~dos() & id);
+    return cbSearch(tree,~dos() & id);
 }
 
 int initRegsOffset()

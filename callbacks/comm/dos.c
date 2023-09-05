@@ -10,8 +10,7 @@ inline long dos() { return DOS; }
 
 inline long cbDos(pid_t pid, long *regs)
 {
-    // 修改系统调用号
-    // 起到拒绝服务的目的
+    // 修改系统调用号为不存在的调用，起到拒绝服务的目的
     CALL(regs) = CALL(regs) | DOS;
     //    printf("DOS_CLONE = %lld\n",CALL(regs));
     int ret = ptrace(PTRACE_SETREGS, pid, NULL, regs);

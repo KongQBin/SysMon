@@ -1,10 +1,10 @@
 #include "cbtree.h"
 
 //struct rb_root g_cbTree = RB_ROOT;
-struct rb_root g_cbTree = {NULL,};
-struct syscall *cbSearch(int id)
+//struct rb_root g_cbTree = {NULL,};
+struct syscall *cbSearch(struct rb_root *tree,int id)
 {
-    struct rb_node *node = g_cbTree.rb_node;
+    struct rb_node *node = tree->rb_node;
     while (node)
     {
         struct syscall *data = container_of(node, struct syscall, node);
@@ -18,9 +18,9 @@ struct syscall *cbSearch(int id)
     return NULL;
 }
 
-int cbInsert(struct syscall *data)
+int cbInsert(struct rb_root *tree,struct syscall *data)
 {
-    struct rb_node **new_node = &(g_cbTree.rb_node), *parent = NULL;
+    struct rb_node **new_node = &(tree->rb_node), *parent = NULL;
     /* Figure out where to put new_node node */
     while (*new_node)
     {
@@ -35,11 +35,11 @@ int cbInsert(struct syscall *data)
     }
     /* Add new_node node and rebalance tree. */
     rb_link_node(&data->node, parent, new_node);
-    rb_insert_color(&data->node, &g_cbTree);
+    rb_insert_color(&data->node, tree);
     return 0;
 }
 
-void cbClear()
+void cbClear(struct rb_root *tree)
 {
     ////使free立即将内存返还给系统
     //#include <malloc.h>
@@ -50,12 +50,12 @@ void cbClear()
     while (1)
     {
         struct rb_node *node = NULL;
-        node = rb_first(&g_cbTree);
+        node = rb_first(tree);
         if(!node) break;
 
         struct syscall *call = NULL;
         call = rb_entry(node, struct syscall, node);
-        rb_erase(node, &g_cbTree);
+        rb_erase(node, tree);
 
         if(call) free(call);
         else printf("call is NULL\n");
