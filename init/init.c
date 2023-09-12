@@ -54,13 +54,13 @@ int initRegsOffset()
     }
 
     fcntl(fd[0],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);//设置fd为阻塞模式
-    fcntl(fd[1],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);
+//    fcntl(fd[1],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);
 
     int pr = fd[0], pw = fd[1];
     pid_t pid = fork();
     if(pid == 0)
     {
-//        printf("son pid is %d\n",getpid());
+        printf("son pid is %d\n",getpid());
         int fd = open("/dev/null",O_WRONLY);
         if(fd < 0) perror("open");
         if(fd >= 0 && write(pw,&fd,sizeof(fd)) == sizeof(fd))
@@ -105,6 +105,15 @@ int initRegsOffset()
         while(--whileNum)
         {
             wait(0);
+
+            if(!ret)
+            {
+                if(ptrace(PTRACE_DETACH, pid, 0, 0) == -1 ) {
+                    perror("ptrace detach");
+                }
+                break;
+            }
+
             memset(&regs,0,sizeof(regs));
             ptrace(PTRACE_GETREGS, pid, 0, &regs);
 
@@ -157,17 +166,14 @@ int initRegsOffset()
                 }
             }
 
+            if(g_regsOffset.call != -1) ret = 0;
             if(ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1 ) {
                 perror("ptrace syscall");
                 ret = -6;
             }
-            if(g_regsOffset.call != -1)
-            {
-                ret = 0;
-                break;
-            }
         }
-        ptrace(PTRACE_DETACH, pid, 0, 0);
+        int status = 0;
+        waitpid(pid,&status,0);
     }
     else
     {
