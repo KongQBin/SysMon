@@ -2,6 +2,7 @@
 
 long cbWrite(pid_t pid, long *regs)
 {
+    return 0;
     long ret = 0;
     long temp_long;
     char message[128] = {0};
@@ -50,6 +51,7 @@ long cbWrite(pid_t pid, long *regs)
 
 long ceWrite(pid_t pid, long *regs)
 {
+    return 0;
     long temp_long;
     char message[1000] = {0};
     char* temp_char2 = message;

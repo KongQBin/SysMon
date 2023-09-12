@@ -30,3 +30,5 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
 add_executable(test ${TEST_LIST})
 add_executable(${PROJECT_NAME} ${MAIN_LIST})
+
+link_libraries(pthread)

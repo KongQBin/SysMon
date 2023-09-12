@@ -24,3 +24,4 @@
 #define ID_EXECVE       (IS_ARCH_64 ? 59 : 11)
 #define ID_EXECVEAT     (IS_ARCH_64 ? 322 : 358)
 #define ID_KILL         (IS_ARCH_64 ? 62 : 37)
+#define ID_EXIT_GROUP   (IS_ARCH_64 ? 231 : 252)
