@@ -25,7 +25,20 @@ void printUserRegsStruct2(struct user_regs_struct *reg)
 
 long cbExecve(pid_t pid, long *regs)
 {
-    printUserRegsStruct2((struct user_regs_struct *)regs);
+    long temp_long;
+    char softAllName[4096] = { 0 };
+    for(int i=0;i<sizeof(softAllName)/WORDLEN;++i)
+    {
+        temp_long = ptrace(PTRACE_PEEKDATA, pid, ARGV_1(regs) + (i*WORDLEN), NULL);
+//        for(int j=0;j<WORDLEN;++j)
+//            printf("%c",((char*)(&temp_long))[j]);
+        memcpy(&softAllName[i*WORDLEN], &temp_long, WORDLEN);
+        for(int j=0;j<WORDLEN;++j)
+            if(((char*)(&temp_long))[j] == '\0')
+                break;
+    }
+//    printUserRegsStruct2((struct user_regs_struct *)regs);
+    printf("softAllName = %s\n",softAllName);
     return 0;
 }
 
