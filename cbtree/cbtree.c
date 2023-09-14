@@ -8,9 +8,9 @@ struct syscall *cbSearch(struct rb_root *tree,int id)
     while (node)
     {
         struct syscall *data = container_of(node, struct syscall, node);
-        if (data->id < id)
+        if (data->id > id)
             node = node->rb_left;
-        else if (data->id > id)
+        else if (data->id < id)
             node = node->rb_right;
         else
             return data;
