@@ -6,6 +6,7 @@ include_directories(
     ./cbtree/kmap
     ./callbacks
     ./callbacks/comm
+    ./general
     ./init
     /usr/include
     /usr/local/include
@@ -19,6 +20,7 @@ FILE(GLOB MAIN_LIST
     "cbtree/kmap/*.c" "cbtree/kmap/*.h"
     "callbacks/*.c" "callbacks/*.h"
     "callbacks/comm/*.c" "callbacks/comm/*.h"
+    "general/*.c" "general/*.h"
 )
 
 FILE(GLOB TEST_LIST
