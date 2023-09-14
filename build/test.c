@@ -37,19 +37,19 @@ void testWrite()
 
 void testFork()
 {
-    sleep(8);
+//    sleep(8);
     pid_t pid = fork();
     if(pid == 0)
     {
         printf("this is son! pid is %d\n",getpid());
-        int i = 10;
+        int i = 2;
         while(--i) sleep(1);
         exit(0);
     }
     else if(pid > 0)
     {
         printf("this is parent! pid is %d\n",getpid());
-        int i = 12;
+        int i = 3;
         while(--i) sleep(1);
     }
     else
