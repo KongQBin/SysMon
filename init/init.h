@@ -1,5 +1,4 @@
-#ifndef INIT_H
-#define INIT_H
+#pragma once
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -40,8 +39,6 @@ int init();
 int insertCallbackTree(struct rb_root *tree,long id,void *cbf,void *cef);     // 初始化系统调用回调树
 struct syscall* searchCallbackTree(struct rb_root *tree,long id);
 int unInit(struct rb_root *tree);
-
-#endif // INIT_H
 
 
 /* X64 LINUX 6.3.1 REGS

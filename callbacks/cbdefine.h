@@ -1,6 +1,6 @@
 #pragma once
 // 一个字的长度(__WORDSIZE = 64 or 32 bit)
-#define WORDLEN sizeof(long)
+#define WORDLEN         sizeof(long)
 // 调用后的情况,此时该系统调用已经执行结束
 // 可以做 监听,以及修改其 返回值 errno等操作
 #define IS_END(regs)    (RET(regs) + 38)
@@ -25,3 +25,7 @@
 #define ID_EXECVEAT     (IS_ARCH_64 ? 322 : 358)
 #define ID_KILL         (IS_ARCH_64 ? 62 : 37)
 #define ID_EXIT_GROUP   (IS_ARCH_64 ? 231 : 252)
+
+/*            此处主要为了解决编译警告            */
+#define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
+#define gettid()           syscall(ID_GETTID)
