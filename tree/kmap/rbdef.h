@@ -37,7 +37,7 @@
 }
 
 #define rbClear(tree,type,func){\
-while (1)\
+    while (1)\
     {\
             struct rb_node *node = NULL;\
             node = rb_first(tree);\
@@ -50,4 +50,5 @@ while (1)\
             if(call) func(call);\
             else printf("call is NULL\n");\
     }\
+    free(tree);\
 }

@@ -17,10 +17,9 @@ struct syscall
 static inline int searchCallBack(struct syscall *call,int id,int opt)
 {return opt ? call->id < id : call->id > id;}
 static inline int insertCallBack(struct syscall *call1,struct syscall *call2,int opt)
-{return opt ? call1->id < call2->id : call1->id > call2->id;}
+{return opt ? call1->id > call2->id : call1->id < call2->id;}
 static inline void clearCallBack(struct syscall *call){free(call); call = NULL;}
 
 struct syscall* cbSearch(struct rb_root *tree,int id);   //查询
 int cbInsert(struct rb_root *tree,struct syscall *data); //插入
-void cbClear(struct rb_root *tree);                     //清空
-
+void cbClear(struct rb_root *tree);                      //清空

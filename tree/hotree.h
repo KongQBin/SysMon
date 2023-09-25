@@ -14,8 +14,8 @@ struct hotfile
 
 static inline int searchCallBack(struct hotfile *file,int inode,int opt)
 {return opt ? file->inode < inode : file->inode > inode;}
-static inline int insertCallBack(struct hotfile *call1,struct hotfile *call2,int opt)
-{return opt ? call1->inode < call2->inode : call1->inode > call2->inode;}
+static inline int insertCallBack(struct hotfile *file1,struct hotfile *file2,int opt)
+{return opt ? file1->inode > file2->inode : file1->inode < file2->inode;}
 static inline void clearCallBack(struct hotfile *file){free(file); file = NULL;}
 
 struct hotfile* hotSearch(struct rb_root *tree,int inode);   //查询
