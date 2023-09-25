@@ -43,12 +43,12 @@
             node = rb_first(tree);\
             if(!node) break;\
 \
-            type *call = NULL;\
-            call = rb_entry(node, type, node);\
+            type *data = NULL;\
+            data = rb_entry(node, type, node);\
             rb_erase(node, tree);\
 \
-            if(call) func(call);\
-            else printf("call is NULL\n");\
+            if(data) func(data);\
+            else printf("data is NULL\n");\
     }\
     free(tree);\
 }

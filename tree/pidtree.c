@@ -1,6 +1,6 @@
 #include "pidtree.h"
 
-struct pidinfo *hotSearch(struct rb_root *tree, int id)
+struct pidinfo *pidSearch(struct rb_root *tree, pid_t id)
 {
     if(!tree) return NULL;
     struct pidinfo *data;
@@ -8,7 +8,18 @@ struct pidinfo *hotSearch(struct rb_root *tree, int id)
     return data;
 }
 
-int hotInsert(struct rb_root *tree, struct pidinfo *data)
+int pidDelete(struct rb_root *tree, pid_t id)
+{
+    if(!tree) return -1;
+    struct pidinfo *info = pidSearch(tree,id);
+    if(!info) return -2;
+    rb_erase(&info->node, tree);
+    free(info);
+    info = NULL;
+    return 0;
+}
+
+int pidInsert(struct rb_root *tree, struct pidinfo *data)
 {
     if(!tree || !data) return -1;
     int ret = 0;
@@ -16,7 +27,7 @@ int hotInsert(struct rb_root *tree, struct pidinfo *data)
     return ret;
 }
 
-void hotClear(struct rb_root *tree)
+void pidClear(struct rb_root *tree)
 {
     if(!tree) return;
     rbClear(tree,struct pidinfo,clearCallBack);

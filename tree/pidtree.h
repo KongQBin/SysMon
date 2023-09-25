@@ -30,6 +30,7 @@ static inline int insertCallBack(struct pidinfo *info1,struct pidinfo *info2,int
 {return opt ? info1->id > info2->id : info1->id < info2->id;}
 static inline void clearCallBack(struct pidinfo *info){free(info); info = NULL;}
 
-struct pidinfo* hotSearch(struct rb_root *tree,int id);      //查询
-int hotInsert(struct rb_root *tree,struct pidinfo *data);    //插入
-void hotClear(struct rb_root *tree);                         //清空
+struct pidinfo* pidSearch(struct rb_root *tree,pid_t id);      //查询
+int pidInsert(struct rb_root *tree,struct pidinfo *data);    //插入
+int pidDelete(struct rb_root *tree,pid_t id);    //插入
+void pidClear(struct rb_root *tree);                         //清空
