@@ -2,12 +2,13 @@ project(SysMon)
 cmake_minimum_required(VERSION 2.9)
 include_directories(
     ./
-    ./cbtree
-    ./cbtree/kmap
+    ./tree
+    ./tree/kmap
     ./callbacks
     ./callbacks/comm
     ./general
     ./init
+    ./kernel
     /usr/include
     /usr/local/include
     )
@@ -16,11 +17,12 @@ FILE(GLOB MAIN_LIST
     "docs/*.h"
     "*.c" "*.h"
     "init/*.c" "init/*.h"
-    "cbtree/*.c" "cbtree/*.h"
-    "cbtree/kmap/*.c" "cbtree/kmap/*.h"
+    "tree/*.c" "tree/*.h"
+    "tree/kmap/*.c" "tree/kmap/*.h"
     "callbacks/*.c" "callbacks/*.h"
     "callbacks/comm/*.c" "callbacks/comm/*.h"
     "general/*.c" "general/*.h"
+    "kernel/*.c" "kernel/*.h"
 )
 
 FILE(GLOB TEST_LIST

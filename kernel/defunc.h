@@ -3,13 +3,21 @@
  * 避免真实函数调用过程中压栈出栈等操作，提高性能
  */
 
-#define MANAGE_SIGNAL(pid,signal){\
+#define MANAGE_SIGNAL(pid,status){\
+if(WIFSIGNALED(status))/*kill -9)*/\
+{\
+    printf("WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
+    return A_EXIT;\
+}\
+\
+int signal = WSTOPSIG(status);\
+dmsg(">> get signal is %d\n",signal);\
 switch (signal) {\
 case SIGTERM:  /*kill -15*/\
 case SIGINT:   /*Ctrl + c*/\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
-    return A_SUCC;\
+    return A_EXIT;\
     break;\
 default:\
     /*dmsg("Unknown signal is %d\n",signal);*/\
@@ -17,24 +25,26 @@ default:\
 }\
 }
 
-#define MANAGE_EVENT(pid,event,status) {\
+#define MANAGE_EVENT(pid,status) {\
+int event = (status >> 16);\
+dmsg(">>> get event is %d\n",event);\
 switch (event){\
 case PTRACE_EVENT_FORK:/*创建进程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_FORK target pid is %d\n",pid);\
-    printProcId(pid,status);\
+    getProcId(pInfo,pid,status);\
     break;\
 }\
 case PTRACE_EVENT_VFORK:/*创建虚拟进程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_VFORK target pid is %d\n",pid);\
-    printProcId(pid,status);\
+    getProcId(pInfo,pid,status);\
     break;\
 }\
 case PTRACE_EVENT_CLONE:/*？？创建线程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_CLONE target pid is %d\n",pid);\
-    printProcId(pid,status);\
+    getProcId(pInfo,pid,status);\
     break;\
 }\
 case PTRACE_EVENT_EXEC:/*运行可执行程序*/\
@@ -50,7 +60,7 @@ case PTRACE_EVENT_VFORK_DONE:/*？？虚拟进程结束*/\
 case PTRACE_EVENT_EXIT:/*进程结束*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
-    if (ptrace(PTRACE_CONT, pid, NULL, sig) < 0)\
+    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
     return A_EXIT;\
 }\

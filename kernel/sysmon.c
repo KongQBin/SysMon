@@ -1,21 +1,28 @@
 #include "sysmon.h"
 
-inline void printProcId(pid_t pid,int status)
+#define EVENT_CONCERN \
+(PTRACE_O_TRACESYSGOOD|PTRACE_O_TRACEEXEC|\
+PTRACE_O_TRACEEXIT|PTRACE_O_TRACECLONE|\
+PTRACE_O_TRACEFORK|PTRACE_O_TRACEVFORK)
+
+inline void getProcId(struct ThreadInfo *pInfo,pid_t pid,int status)
 {
     pid_t spid;
     //            // 获取子进程的PID
     if(ptrace(PTRACE_GETEVENTMSG, pid, NULL, &spid) >= 0)
+    {
+        addPid(pInfo,&pid);
         dmsg("Child process created: %d status = %d\n", spid, status);
+    }
     else
         dmsg("PTRACE_GETEVENTMSG : %s(%d) pid is %d\n", strerror(errno),errno,spid);
 }
-void printProcId(pid_t pid,int status);
+void getProcId(struct ThreadInfo *pInfo,pid_t pid,int status);
 
 struct rb_root *cbTree = NULL;
 pid_t contpid = 0;
 pthread_t thread_id;
 
-int monce = 1;
 int monSysCall(struct rb_root *cbTree,pid_t child)
 {
     struct user_regs_struct reg;
@@ -32,15 +39,8 @@ int monSysCall(struct rb_root *cbTree,pid_t child)
     struct syscall *call = searchCallbackTree(cbTree,CALL(pregs));
     if(!call)
     {
-        //         dmsg("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
+//        printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
         return -2;
-    }
-
-    if(monce && CALL(pregs) == ID_EXECVE && IS_BEGIN(pregs))
-    {
-        -- monce;
-        printf("------------------3\n");
-        return -3;
     }
 
     dmsg("Call %d\n",CALL(pregs));
@@ -62,27 +62,19 @@ enum ANALYSISRET
     A_EXIT = 1,
 };
 
-enum ANALYSISRET analysis(pid_t *pid,int *status)
+enum ANALYSISRET analysis(pid_t *pid,int *status,struct ThreadInfo *pInfo)
 {
-    // 设置下次监控的类型
-    long opt = PTRACE_O_TRACESYSGOOD
-               | PTRACE_O_TRACEEXEC
-               | PTRACE_O_TRACEEXIT
-               | PTRACE_O_TRACECLONE
-               | PTRACE_O_TRACEFORK
-               | PTRACE_O_TRACEVFORK;
-    if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, opt) < 0)
-        dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
-
-
 //    dmsg(" waitpid is %d\n",targs->pid);
-    long sig = 0,event = 0;
-    sig = WSTOPSIG(*status);
-    event = (*status >> 16);
-//    dmsg("status = %d\tsig = %lld\tevent=%lld\n",*status,sig,event);
+    dmsg("> status = %d\n",*status);
     /*注意这两个宏函数存在return的情况*/
-    MANAGE_SIGNAL(*pid,sig);
-    MANAGE_EVENT(*pid,event,*status);
+    MANAGE_SIGNAL(*pid,*status);
+    MANAGE_EVENT(*pid,*status);
+
+    printf("thread_id = %d\n",*status>>16);
+    printf("process_id = %d\n",*status & 0xFFFF);
+    // 设置下次监控的类型
+    if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN))
+        dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
 
     int monRet = monSysCall(cbTree,*pid);
     if(monRet != -2) printf("monRet = %d\n",monRet);
@@ -125,7 +117,6 @@ void signalHandler(int signum) {
 
 void registerSignal()
 {
-    printf("pthread_t = %llu\n",gettid());
     // 注册信号处理函数
     struct sigaction sa;
     sa.sa_handler = signalHandler;
@@ -136,19 +127,34 @@ void registerSignal()
 
 void* startMon(void* ppid)
 {
+    struct ThreadInfo *pInfo = NULL;
+    pInfo = calloc(1,sizeof(struct ThreadInfo));
+    if(!pInfo)          goto END;
+    pInfo->tid = gettid();
+    pInfo->pidSize = 10;
+    pInfo->pids = (pid_t*)calloc(pInfo->pidSize,sizeof(pid_t));      //提前准备10个堆区空间
+    if(!pInfo->pids)    goto END;
+    pInfo->pidLen = 0;
+
     registerSignal();
 
+
     pid_t pid = *(pid_t*)ppid;
+    free(ppid); ppid = NULL;
     int status,ret;
     int toControls;
     dmsg("startMon pid is %d\n",pid);
     // 附加到被传入PID的进程
-    ret = ptrace(PTRACE_ATTACH, pid, 0, 0);
-    if(ret)
+    if(ret = ptrace(PTRACE_ATTACH, pid, 0, 0))
     {
         dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
-        return NULL;
+        goto END;
     }
+
+    if(!addPid(pInfo,&pid))
+        printf("StartMon pthread_t = %llu\n",pInfo->tid);
+    else
+        goto END;
 
     while (1)
     {
@@ -157,12 +163,13 @@ void* startMon(void* ppid)
         pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0);
         if(pid && status)
         {
-            enum ANALYSISRET ret = analysis(&pid,&status);        // 分析
+            enum ANALYSISRET ret = analysis(&pid,&status,pInfo);        // 分析
             switch (ret) {
             case A_SUCC:
                 toControls = 1;
                 break;
             case A_EXIT:
+                delPid(pInfo,&pid);
                 toControls = 0;
                 break;
             default:
@@ -176,5 +183,10 @@ void* startMon(void* ppid)
     // DETACH注销我们的跟踪,target process恢复运行
     ptrace(PTRACE_DETACH, pid, 0, 0);
     //    unInit(targs->cbTree);
-    return 0;
+
+END:
+    if(ppid)        {free(ppid);ppid=NULL;}
+    if(pInfo->pids) {free(pInfo->pids);pInfo->pids=NULL;}
+    if(pInfo)       {free(pInfo);pInfo=NULL;}
+    return NULL;
 }
