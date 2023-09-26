@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <pthread.h>
 
 
 void testWrite()
@@ -56,9 +57,30 @@ void testFork()
         printf("fork error : %s\n",strerror(errno));
 }
 
+void *thread(void* data)
+{
+    printf("pid is %d tid = %d\n",getpid(),gettid());
+    close(1);
+    return NULL;
+}
+
+pthread_t thread_id;
+int createThread()
+{
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&thread_id, &attr, thread, NULL);
+    pthread_attr_destroy(&attr);
+
+    return 0;
+}
+
 int main()
 {
-    printf("%d\n",getpid());
-    testFork();
+    printf("pid is %d tid = %d\n",getpid(),gettid());
+    sleep(10);
+    createThread();
+    sleep(5);
 	return 0;
 }
