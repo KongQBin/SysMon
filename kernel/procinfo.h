@@ -26,6 +26,7 @@ struct ThreadInfo           // 当前进程信息
     unsigned long pInfoSize;
 };
 
+// 注意以下函数其实现代码应该是半成品，再次使用前需要仔细检查
 int initThreadInfo(struct ThreadInfo *info);
 int addPid(struct ThreadInfo *pInfo, pid_t *pid);
 int delPid(struct ThreadInfo *pInfo, pid_t *pid);

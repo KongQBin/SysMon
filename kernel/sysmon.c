@@ -5,19 +5,15 @@
 PTRACE_O_TRACEEXIT|PTRACE_O_TRACECLONE|\
 PTRACE_O_TRACEFORK|PTRACE_O_TRACEVFORK)
 
-inline void getProcId(struct ThreadInfo *pInfo,pid_t pid,int status)
+static inline void getProcId(pid_t pid,int status)
 {
     pid_t spid;
-    //            // 获取子进程的PID
+    // 获取新进程的PID
     if(ptrace(PTRACE_GETEVENTMSG, pid, NULL, &spid) >= 0)
-    {
-//        addPid(pInfo,&pid);
         dmsg("Child process created: %d status = %d\n", spid, status);
-    }
     else
         dmsg("PTRACE_GETEVENTMSG : %s(%d) pid is %d\n", strerror(errno),errno,spid);
 }
-void getProcId(struct ThreadInfo *pInfo,pid_t pid,int status);
 
 struct rb_root *cbTree = NULL;
 pid_t contpid = 0;
@@ -37,7 +33,7 @@ enum ANALYSISRET
     A_CALL_NOT_FOUND = 3,           //容器中不存在对该调用的处理
 };
 
-enum ANALYSISRET analysis(pid_t *pid,int *status,struct ThreadInfo *pInfo,struct ControlInfo *info, int *callid)
+enum ANALYSISRET analysis(pid_t *pid,int *status,struct ControlInfo *info, int *callid)
 {
     dmsg(" waitpid is %d\n",*pid);
     dmsg(">     status is %d     <\n",*status);
@@ -127,16 +123,6 @@ void* startMon(void* pinfo)
 {
     struct ControlInfo *info = (struct ControlInfo *)pinfo;
     info->cpid = gettid();
-
-    struct ThreadInfo *pInfo = NULL;
-//    pInfo = calloc(1,sizeof(struct ThreadInfo));
-//    if(!pInfo)          goto END;
-//    pInfo->tid = gettid();
-//    pInfo->pidSize = 10;
-//    pInfo->pids = (pid_t*)calloc(pInfo->pidSize,sizeof(pid_t));      //提前准备10个堆区空间
-//    if(!pInfo->pids)    goto END;
-//    pInfo->pidLen = 0;
-
     registerSignal();
 
     pid_t pid = 0;
@@ -150,11 +136,6 @@ void* startMon(void* pinfo)
         dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,info->tpid);
         goto END;
     }
-
-//    if(!addPid(pInfo,&nfo->tpid))
-//        printf("StartMon pthread_t = %llu\n",pInfo->tid);
-//    else
-//        goto END;
 
     int run = 1;
     while(run)
@@ -184,7 +165,7 @@ void* startMon(void* pinfo)
         // 开始处理
         if(pid && status)
         {
-            enum ANALYSISRET ret = analysis(&pid,&status,pInfo,info,&callid);        // 分析
+            enum ANALYSISRET ret = analysis(&pid,&status,info,&callid);        // 分析
             switch (ret) {
             case A_SUCC:
                 toControls = 1;
@@ -195,7 +176,6 @@ void* startMon(void* pinfo)
                  * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
                  * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
                  */
-                // delPid(pInfo,&pid);
                 toControls = 0;
                 printf("pid : %d to exit!\n",pid);
                 // 取消对该进程的追踪，进入下一个循环
@@ -219,12 +199,7 @@ void* startMon(void* pinfo)
         }
     }
 
-    // unInit(targs->cbTree);
-
 END:
-    if(pInfo && pInfo->pids) {free(pInfo->pids);pInfo->pids=NULL;}
-    if(pInfo)       {free(pInfo);pInfo=NULL;}
-    info->tpid = 0;
     info->toexit = 1;
     return NULL;
 }

@@ -32,19 +32,19 @@ switch (event){\
 case PTRACE_EVENT_FORK:/*创建进程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_FORK target pid is %d\n",pid);\
-    getProcId(pInfo,pid,status);\
+    getProcId(pid,status);\
     break;\
 }\
 case PTRACE_EVENT_VFORK:/*创建虚拟进程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_VFORK target pid is %d\n",pid);\
-    getProcId(pInfo,pid,status);\
+    getProcId(pid,status);\
     break;\
 }\
 case PTRACE_EVENT_CLONE:/*？？创建线程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_CLONE target pid is %d\n",pid);\
-    getProcId(pInfo,pid,status);\
+    getProcId(pid,status);\
     break;\
 }\
 case PTRACE_EVENT_EXEC:/*运行可执行程序*/\
