@@ -125,24 +125,22 @@ void* startMon(void* pinfo)
     info->cpid = gettid();
     registerSignal();
 
-    pid_t pid = 0;
-    int status,ret;
-    int toControls;
-    int callid = 0;
     dmsg("startMon pid is %d\n",info->tpid);
     // 附加到被传入PID的进程
-    if(ret = ptrace(PTRACE_ATTACH, info->tpid, 0, 0))
+    if(ptrace(PTRACE_ATTACH, info->tpid, 0, 0) < 0)
     {
         dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,info->tpid);
         goto END;
     }
 
-    int run = 1;
+    pid_t pid = 0;
+    int status = 0,tocontrols = 0,
+        callid = 0,run = 1;
     while(run)
     {
         callid = 0;
         status = 0;
-        toControls = 1;
+        tocontrols = 1;
         pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
 
         // 判断pid
@@ -168,7 +166,7 @@ void* startMon(void* pinfo)
             enum ANALYSISRET ret = analysis(&pid,&status,info,&callid);        // 分析
             switch (ret) {
             case A_SUCC:
-                toControls = 1;
+                tocontrols = 1;
                 break;
             case A_TARGET_PROCESS_EXIT:
                 /* 进程（包括子进程）或者线程退出
@@ -176,7 +174,7 @@ void* startMon(void* pinfo)
                  * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
                  * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
                  */
-                toControls = 0;
+                tocontrols = 0;
                 printf("pid : %d to exit!\n",pid);
                 // 取消对该进程的追踪，进入下一个循环
                 if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
@@ -190,7 +188,7 @@ void* startMon(void* pinfo)
                 dmsg("Unknown ANALYSISRET = %d\n",ret);
                 break;
             }
-            if(toControls) controls(&pid,&status,&info->block[callid]);        // 处理
+            if(tocontrols) controls(&pid,&status,&info->block[callid]);        // 处理
         }
 
         // 继续该事件
