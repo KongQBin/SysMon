@@ -7,8 +7,9 @@
 #define DOS             (1 << (WORDLEN*sizeof(int)-1))
 
 inline long dos() { return DOS; }
+extern long ndos(long call) { return ~DOS&call; }
 
-inline long cbDos(pid_t pid, long *regs)
+inline long cbDos(pid_t *pid, long *regs, int block)
 {
     // 修改系统调用号为不存在的调用，起到拒绝服务的目的
     CALL(regs) = CALL(regs) | DOS;
@@ -18,7 +19,7 @@ inline long cbDos(pid_t pid, long *regs)
     return 0;
 }
 
-inline long ceDos(pid_t pid, long *regs)
+inline long ceDos(pid_t *pid, long *regs, int block)
 {
     // -38 = Function not implemented = 未实现的函数
     // -1  = Operation not permitted  = 不被允许的操作

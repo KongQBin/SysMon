@@ -11,7 +11,7 @@ inline void getProcId(struct ThreadInfo *pInfo,pid_t pid,int status)
     //            // 获取子进程的PID
     if(ptrace(PTRACE_GETEVENTMSG, pid, NULL, &spid) >= 0)
     {
-        addPid(pInfo,&pid);
+//        addPid(pInfo,&pid);
         dmsg("Child process created: %d status = %d\n", spid, status);
     }
     else
@@ -23,33 +23,6 @@ struct rb_root *cbTree = NULL;
 pid_t contpid = 0;
 pthread_t thread_id;
 
-int monSysCall(struct rb_root *cbTree,pid_t child)
-{
-    struct user_regs_struct reg;
-    memset(&reg,0,sizeof(reg));
-    // 获取子进程寄存器的值
-    ptrace(PTRACE_GETREGS, child, 0, &reg);
-
-    long *pregs = (long*)&reg;
-    //    printUserRegsStruct(&reg);
-    //     dmsg("Call %d\n",CALL(pregs));
-    // 目标进程退出
-    if(CALL(pregs) == ID_EXIT_GROUP) return -1;
-
-    struct syscall *call = searchCallbackTree(cbTree,CALL(pregs));
-    if(!call)
-    {
-//        printf("CALL(pregs):%d doesn't exist in callback tree!\n",CALL(pregs));
-        return -2;
-    }
-
-    dmsg("Call %d\n",CALL(pregs));
-    IS_BEGIN(pregs) && !(CALL(pregs)&dos()) ?
-        ((long (*)(pid_t,long *))call->cbf)(child,pregs) :
-        ((long (*)(pid_t,long *))call->cef)(child,pregs);
-    return CALL(pregs);
-}
-
 struct threadArgs
 {
     pid_t pid;
@@ -58,54 +31,79 @@ struct threadArgs
 
 enum ANALYSISRET
 {
-    A_SUCC = 0,
-    A_EXIT = 1,
+    A_SUCC = 0,                     //处理成功
+    A_TARGET_PROCESS_EXIT = 1,      //进程退出
+    A_REGS_READ_ERROR = 2,          //寄存器读取失败
+    A_CALL_NOT_FOUND = 3,           //容器中不存在对该调用的处理
 };
 
-enum ANALYSISRET analysis(pid_t *pid,int *status,struct ThreadInfo *pInfo)
+enum ANALYSISRET analysis(pid_t *pid,int *status,struct ThreadInfo *pInfo,struct ControlInfo *info, int *callid)
 {
-//    dmsg(" waitpid is %d\n",targs->pid);
+    // dmsg(" waitpid is %d\n",targs->pid);
     dmsg("> status = %d\n",*status);
     /*注意这两个宏函数存在return的情况*/
     MANAGE_SIGNAL(*pid,*status);
     MANAGE_EVENT(*pid,*status);
 
-    printf("thread_id = %d\n",*status>>16);
-    printf("process_id = %d\n",*status & 0xFFFF);
     // 设置下次监控的类型
     if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN))
         dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
 
-    int monRet = monSysCall(cbTree,*pid);
-    if(monRet != -2) printf("monRet = %d\n",monRet);
-    if(monRet == -1) printf("stopMon pid is %d\n", *pid);
-    if(monRet != -3)
+    struct user_regs_struct reg;
+    memset(&reg,0,sizeof(reg));
+    // 获取子进程寄存器的值
+    if(ptrace(PTRACE_GETREGS, *pid, 0, &reg) < 0)
     {
-        if(ptrace(PTRACE_SYSCALL, *pid, 0, 0) < 0)
-        {
-            dmsg("PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
-            if(errno == 3) return errno;   //No such process
-        }
+        dmsg("PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
+        return A_REGS_READ_ERROR;
     }
+
+    // printUserRegsStruct(&reg);
+    long *pregs = (long*)&reg;
+
+    // 指针数组作为bloom使用，判断是否关注该系统调用
+    if(!info->cbf[ndos(CALL(pregs))])
+        return A_CALL_NOT_FOUND;
+    // 目标进程退出
+    if(CALL(pregs) == ID_EXIT_GROUP)
+    {
+        dmsg("Call is ID_EXIT_GROUP\n");
+        return A_TARGET_PROCESS_EXIT;
+    }
+
+    dmsg("Hit Call %d\n",CALL(pregs));
+    *callid = ndos(CALL(pregs));
+    IS_BEGIN(pregs) ?
+        info->cbf[*callid](pid,pregs,ISBLOCK(info,*callid)):
+        info->cef[*callid](pid,pregs,ISBLOCK(info,*callid));
+    return A_SUCC;
+}
+
+int controls(pid_t *pid,int *status,int64_t *block)
+{
+    // 非阻塞
+    if(!*block)
+    {
+//        if (ptrace(PTRACE_SYSCALL, *pid, 0, 0) < 0) {
+//            dmsg("PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
+//            return -1;
+//        }
+    }
+    //阻塞模式
     else
     {
-        contpid = *pid;
+        // 检查 容器 遍历已经处理完成的事件 然后放行
+        // PTRACE_SYSEMU使得pid进程暂停在每次系统调用入口处。
+        //    if (ptrace(PTRACE_SYSEMU, mtargs->pid, 0, 0) < 0) {
+        //        dmsg("PTRACE_SYSEMU : %s(%d) pid is %d\n",strerror(errno),errno,mtargs->pid);
+        //        //        return NULL;
+        //    }
     }
     return 0;
 }
 
-int controls(pid_t *pid,int *status)
-{
-    // 检查 容器 遍历已经处理完成的事件 然后放行
-
-
-    // PTRACE_SYSEMU使得pid进程暂停在每次系统调用入口处。
-    //    if (ptrace(PTRACE_SYSEMU, mtargs->pid, 0, 0) < 0) {
-    //        dmsg("PTRACE_SYSEMU : %s(%d) pid is %d\n",strerror(errno),errno,mtargs->pid);
-    //        //        return NULL;
-    //    }
-    return 0;
-}
+//if(ptrace(PTRACE_SYSCALL, contpid, 0, 0) < 0)
+//    dmsg("PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,contpid);
 
 void signalHandler(int signum) {
     if (signum == SIGUSR1) {
@@ -125,68 +123,83 @@ void registerSignal()
     sigaction(SIGUSR1, &sa, NULL);
 }
 
-void* startMon(void* ppid)
+void* startMon(void* pinfo)
 {
+    struct ControlInfo *info = (struct ControlInfo *)pinfo;
+    info->cpid = gettid();
+
     struct ThreadInfo *pInfo = NULL;
-    pInfo = calloc(1,sizeof(struct ThreadInfo));
-    if(!pInfo)          goto END;
-    pInfo->tid = gettid();
-    pInfo->pidSize = 10;
-    pInfo->pids = (pid_t*)calloc(pInfo->pidSize,sizeof(pid_t));      //提前准备10个堆区空间
-    if(!pInfo->pids)    goto END;
-    pInfo->pidLen = 0;
+//    pInfo = calloc(1,sizeof(struct ThreadInfo));
+//    if(!pInfo)          goto END;
+//    pInfo->tid = gettid();
+//    pInfo->pidSize = 10;
+//    pInfo->pids = (pid_t*)calloc(pInfo->pidSize,sizeof(pid_t));      //提前准备10个堆区空间
+//    if(!pInfo->pids)    goto END;
+//    pInfo->pidLen = 0;
 
     registerSignal();
 
-
-    pid_t pid = *(pid_t*)ppid;
-    free(ppid); ppid = NULL;
+    pid_t pid = 0;
     int status,ret;
     int toControls;
-    dmsg("startMon pid is %d\n",pid);
+    int callid = 0;
+    dmsg("startMon pid is %d\n",info->tpid);
     // 附加到被传入PID的进程
-    if(ret = ptrace(PTRACE_ATTACH, pid, 0, 0))
+    if(ret = ptrace(PTRACE_ATTACH, info->tpid, 0, 0))
     {
-        dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+        dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,info->tpid);
         goto END;
     }
 
-    if(!addPid(pInfo,&pid))
-        printf("StartMon pthread_t = %llu\n",pInfo->tid);
-    else
-        goto END;
+//    if(!addPid(pInfo,&nfo->tpid))
+//        printf("StartMon pthread_t = %llu\n",pInfo->tid);
+//    else
+//        goto END;
 
-    while (1)
+    int run = 1;
+    while(run)
     {
+        callid = 0;
         status = 0;
         toControls = 1;
-        pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0);
+        pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
         if(pid && status)
         {
-            enum ANALYSISRET ret = analysis(&pid,&status,pInfo);        // 分析
+            enum ANALYSISRET ret = analysis(&pid,&status,pInfo,info,&callid);        // 分析
             switch (ret) {
             case A_SUCC:
                 toControls = 1;
                 break;
-            case A_EXIT:
-                delPid(pInfo,&pid);
+            case A_TARGET_PROCESS_EXIT:
+                // 进程（包括子进程）或者线程退出
+                // 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
+                // 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
+                // delPid(pInfo,&pid);
                 toControls = 0;
+                // TODO(KongBin):此处存在缺陷，如果是守护进程就丢失监控了
+                printf("pid : %d to exit!\n",pid);
+                if(pid == info->tpid) run = 0;
+                break;
+            case A_CALL_NOT_FOUND:
+                dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
                 break;
             default:
                 dmsg("Unknown ANALYSISRET = %d\n",ret);
                 break;
             }
-            if(toControls) controls(&pid,&status);        // 处理
+            if(toControls) controls(&pid,&status,&info->block[callid]);        // 处理
+        }
+        // 根据run决定继续或取消追踪
+        if(run ? ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0 : ptrace(PTRACE_DETACH, info->tpid, 0, 0) < 0) {
+            dmsg("%s : %s(%d) pid is %d\n",run ? "PTRACE_SYSCALL" : "PTRACE_DETACH", strerror(errno),errno,pid);
         }
     }
-
-    // DETACH注销我们的跟踪,target process恢复运行
-    ptrace(PTRACE_DETACH, pid, 0, 0);
-    //    unInit(targs->cbTree);
+    // unInit(targs->cbTree);
 
 END:
-    if(ppid)        {free(ppid);ppid=NULL;}
-    if(pInfo->pids) {free(pInfo->pids);pInfo->pids=NULL;}
+    if(pInfo && pInfo->pids) {free(pInfo->pids);pInfo->pids=NULL;}
     if(pInfo)       {free(pInfo);pInfo=NULL;}
+    info->tpid = 0;
+    info->toexit = 1;
     return NULL;
 }

@@ -23,13 +23,13 @@ void printUserRegsStruct2(struct user_regs_struct *reg)
     printf("\n");
 }
 
-long cbExecve(pid_t pid, long *regs)
+long cbExecve(pid_t *pid, long *regs, int block)
 {
     long temp_long;
     char softAllName[4096] = { 0 };
     for(int i=0;i<sizeof(softAllName)/WORDLEN;++i)
     {
-        temp_long = ptrace(PTRACE_PEEKDATA, pid, ARGV_1(regs) + (i*WORDLEN), NULL);
+        temp_long = ptrace(PTRACE_PEEKDATA, *pid, ARGV_1(regs) + (i*WORDLEN), NULL);
 //        for(int j=0;j<WORDLEN;++j)
 //            printf("%c",((char*)(&temp_long))[j]);
         memcpy(&softAllName[i*WORDLEN], &temp_long, WORDLEN);
@@ -38,11 +38,12 @@ long cbExecve(pid_t pid, long *regs)
                 break;
     }
 //    printUserRegsStruct2((struct user_regs_struct *)regs);
+    // 如果是相对路径则可以通过/proc/pid/cwd获取进程工作目录与soft拼接
     printf("softAllName = %s\n",softAllName);
     return 0;
 }
 
-long ceExecve(pid_t pid, long *regs)
+long ceExecve(pid_t *pid, long *regs, int block)
 {
 
     return 0;

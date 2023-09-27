@@ -1,6 +1,6 @@
 #include "callbacks.h"
 
-long cbFork(pid_t pid, long *regs)
+long cbFork(pid_t *pid, long *regs, int block)
 {
     CALL(regs) = 10000;
     int ret = ptrace(PTRACE_SETREGS, pid, NULL, regs);
@@ -8,7 +8,7 @@ long cbFork(pid_t pid, long *regs)
     return 0;
 }
 
-long ceFork(pid_t pid, long *regs)
+long ceFork(pid_t *pid, long *regs, int block)
 {
     return 0;
 }

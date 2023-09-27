@@ -5,6 +5,7 @@
 #include "defunc.h"
 #include "testfunc.h"
 #include "procinfo.h"
+#include "controlinfo.h"
 
 // ptrace使用了PTRACE_O_TRACEFORK就自动附加了子进程了，无法拉起子线程再进行附加了，没办法并发
 /* 解决思路一：while(wait)仅负责遍历进程及其子进程事件*/

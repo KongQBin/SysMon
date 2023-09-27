@@ -7,7 +7,7 @@
 if(WIFSIGNALED(status))/*kill -9)*/\
 {\
     printf("WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
-    return A_EXIT;\
+    return A_TARGET_PROCESS_EXIT;\
 }\
 \
 int signal = WSTOPSIG(status);\
@@ -17,7 +17,7 @@ case SIGTERM:  /*kill -15*/\
 case SIGINT:   /*Ctrl + c*/\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
-    return A_EXIT;\
+    return A_TARGET_PROCESS_EXIT;\
     break;\
 default:\
     /*dmsg("Unknown signal is %d\n",signal);*/\
@@ -62,7 +62,7 @@ case PTRACE_EVENT_EXIT:/*进程结束*/\
     dmsg("Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
-    return A_EXIT;\
+    return A_TARGET_PROCESS_EXIT;\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\
 {\

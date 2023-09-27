@@ -1,7 +1,8 @@
 #include "callbacks.h"
 
-long cbWrite(pid_t pid, long *regs)
+long cbWrite(pid_t *pid, long *regs, int block)
 {
+    printf("%llu\n",*pid);
     return 0;
     long ret = 0;
     long temp_long;
@@ -49,7 +50,7 @@ long cbWrite(pid_t pid, long *regs)
     return 0;
 }
 
-long ceWrite(pid_t pid, long *regs)
+long ceWrite(pid_t *pid, long *regs, int block)
 {
     return 0;
     long temp_long;
