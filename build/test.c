@@ -65,22 +65,48 @@ void *thread(void* data)
 }
 
 pthread_t thread_id;
-int createThread()
+int testCreateThread()
 {
+    sleep(10);
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_create(&thread_id, &attr, thread, NULL);
     pthread_attr_destroy(&attr);
-
+    sleep(5);
     return 0;
+}
+
+
+void testReadLink()
+{
+    //proc/18933/fd/0       ->      通过软链接路径得到文件路径
+    //proc/18933/fdinfo/0   ->      通过文件内容中的flags得到打开权限
+    static char buf[4096] = {0};
+    int i;
+    int rslt = readlink("/proc/18933/fd/0", buf, 4096);
+    if (rslt < 0 || rslt >= 4096)
+    {
+        return;
+    }
+    buf[rslt] = '\0';
+    printf("%s\n",buf);
+//    for (i = rslt; i >= 0; i--)
+//    {
+//        printf("buf[%d] %c\n", i, buf[i]);
+//        if (buf[i] == '/')
+//        {
+//            buf[i + 1] = '\0';
+//            break;
+//        }
+//    }
+//    return buf;
 }
 
 int main()
 {
+//    testReadLink();
     printf("pid is %d tid = %d\n",getpid(),gettid());
-    sleep(10);
-    createThread();
-    sleep(5);
+    testCreateThread();
 	return 0;
 }
