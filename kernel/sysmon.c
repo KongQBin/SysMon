@@ -39,8 +39,8 @@ enum ANALYSISRET
 
 enum ANALYSISRET analysis(pid_t *pid,int *status,struct ThreadInfo *pInfo,struct ControlInfo *info, int *callid)
 {
-    // dmsg(" waitpid is %d\n",targs->pid);
-    dmsg("> status = %d\n",*status);
+    dmsg(" waitpid is %d\n",*pid);
+    dmsg(">     status is %d     <\n",*status);
     /*注意这两个宏函数存在return的情况*/
     MANAGE_SIGNAL(*pid,*status);
     MANAGE_EVENT(*pid,*status);
@@ -163,6 +163,25 @@ void* startMon(void* pinfo)
         status = 0;
         toControls = 1;
         pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
+
+        // 判断pid
+        if(pid == -1)
+        {
+            switch (errno) {
+            case ECHILD:    // 没有被追踪的进程了
+                run = 0;
+            case EINTR:     // 被信号打断
+                continue;
+                break;
+            case EINVAL:    // 无效参数
+            default:        // 其它错误
+                run = 0;
+                dmsg("%s\n",strerror(errno));
+                continue;
+                break;
+            }
+        }
+        // 开始处理
         if(pid && status)
         {
             enum ANALYSISRET ret = analysis(&pid,&status,pInfo,info,&callid);        // 分析
@@ -171,14 +190,18 @@ void* startMon(void* pinfo)
                 toControls = 1;
                 break;
             case A_TARGET_PROCESS_EXIT:
-                // 进程（包括子进程）或者线程退出
-                // 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
-                // 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
+                /* 进程（包括子进程）或者线程退出
+                 *
+                 * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
+                 * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
+                 */
                 // delPid(pInfo,&pid);
                 toControls = 0;
-                // TODO(KongBin):此处存在缺陷，如果是守护进程就丢失监控了
                 printf("pid : %d to exit!\n",pid);
-                if(pid == info->tpid) run = 0;
+                // 取消对该进程的追踪，进入下一个循环
+                if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
+                    dmsg("PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+                continue;
                 break;
             case A_CALL_NOT_FOUND:
                 dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
@@ -189,11 +212,13 @@ void* startMon(void* pinfo)
             }
             if(toControls) controls(&pid,&status,&info->block[callid]);        // 处理
         }
-        // 根据run决定继续或取消追踪
-        if(run ? ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0 : ptrace(PTRACE_DETACH, info->tpid, 0, 0) < 0) {
-            dmsg("%s : %s(%d) pid is %d\n",run ? "PTRACE_SYSCALL" : "PTRACE_DETACH", strerror(errno),errno,pid);
+
+        // 继续该事件
+        if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+            dmsg("%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
         }
     }
+
     // unInit(targs->cbTree);
 
 END:
