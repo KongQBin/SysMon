@@ -105,8 +105,8 @@ void testReadLink()
 
 int main()
 {
-//    testReadLink();
     printf("pid is %d tid = %d\n",getpid(),gettid());
+//    testReadLink();
     testCreateThread();
 	return 0;
 }

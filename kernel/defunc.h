@@ -11,7 +11,7 @@ if(WIFSIGNALED(status))/*kill -9)*/\
 }\
 \
 int signal = WSTOPSIG(status);\
-dmsg(">> get signal is %d\n",signal);\
+dmsg(">>    signal is %d    <<\n",signal);\
 switch (signal) {\
 case SIGTERM:  /*kill -15*/\
 case SIGINT:   /*Ctrl + c*/\
@@ -27,7 +27,7 @@ default:\
 
 #define MANAGE_EVENT(pid,status) {\
 int event = (status >> 16);\
-dmsg(">>> get event is %d\n",event);\
+dmsg(">>>   get event is %d   <<<\n",event);\
 switch (event){\
 case PTRACE_EVENT_FORK:/*创建进程*/\
 {\
@@ -60,8 +60,8 @@ case PTRACE_EVENT_VFORK_DONE:/*？？虚拟进程结束*/\
 case PTRACE_EVENT_EXIT:/*进程结束*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
-    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
-        dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
+/*    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
+        dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\*/\
     return A_TARGET_PROCESS_EXIT;\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\

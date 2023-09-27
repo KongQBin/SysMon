@@ -19,7 +19,7 @@ struct ThreadInfo           // 当前进程信息
     pthread_t tid;
 
     pid_t *pids;                    // 监控的进程信息
-    struct ProcInfo **pInfo;       // 监控的进程信息
+    struct ProcInfo **pInfo;        // 监控的进程信息
     unsigned long pidSize;          // 当前空间长度
     unsigned long pidLen;           // 当前存储有效pid长度
     unsigned long pInfoLen;
