@@ -16,7 +16,9 @@ int insertHotTree(struct hotfile *file)
     return hotInsert(hotTree,file);
 }
 
-struct hotfile *searchHotTree(int64_t inode)
+struct hotfile *searchHotTree(int64_t inode, int64_t devid)
 {
-    return hotSearch(hotTree,inode);
+    char id[ID_MAX] = {0};
+    createFileId(id,inode,devid);
+    return hotSearch(hotTree,id);
 }

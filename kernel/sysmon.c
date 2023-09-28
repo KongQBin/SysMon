@@ -25,15 +25,17 @@ struct threadArgs
     struct rb_root *cbTree;
 };
 
-enum ANALYSISRET
+enum APRET
 {
-    A_SUCC = 0,                     //处理成功
-    A_TARGET_PROCESS_EXIT = 1,      //进程退出
-    A_REGS_READ_ERROR = 2,          //寄存器读取失败
-    A_CALL_NOT_FOUND = 3,           //容器中不存在对该调用的处理
+    AP_SUCC = 0,                     //处理成功
+    AP_TARGET_PROCESS_EXIT = 1,      //进程退出
+    AP_REGS_READ_ERROR = 2,          //寄存器读取失败
+    AP_CALL_NOT_FOUND = 3,           //容器中不存在对该调用的处理
+    AP_IS_EVENT = 4,                 //事件处理结束
+    AP_TO_BLOCK = 5,                 //阻塞该系统调用
 };
-
-enum ANALYSISRET analysis(pid_t *pid,int *status,struct ControlInfo *info, int *callid)
+// 分析预处理
+enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, int *callid)
 {
     dmsg(" waitpid is %d\n",*pid);
     dmsg(">     status is %d     <\n",*status);
@@ -51,28 +53,30 @@ enum ANALYSISRET analysis(pid_t *pid,int *status,struct ControlInfo *info, int *
     if(ptrace(PTRACE_GETREGS, *pid, 0, &reg) < 0)
     {
         dmsg("PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
-        return A_REGS_READ_ERROR;
+        return AP_REGS_READ_ERROR;
     }
 
     // printUserRegsStruct(&reg);
     long *pregs = (long*)&reg;
+    *callid = ndos(CALL(pregs));
 
-    // 指针数组作为bloom使用，判断是否关注该系统调用
-    if(!info->cbf[ndos(CALL(pregs))])
-        return A_CALL_NOT_FOUND;
     // 目标进程退出
-    if(CALL(pregs) == ID_EXIT_GROUP)
+    if(*callid == ID_EXIT_GROUP)
     {
         dmsg("Call is ID_EXIT_GROUP\n");
-        return A_TARGET_PROCESS_EXIT;
+        return AP_TARGET_PROCESS_EXIT;
     }
+    // 指针数组作为bloom使用，判断是否关注该系统调用
+    if(IS_BEGIN(pregs) ?
+            !info->cbf[*callid] :
+            !info->cef[*callid])
+        return AP_CALL_NOT_FOUND;
 
-    dmsg("Hit Call %d\n",CALL(pregs));
-    *callid = ndos(CALL(pregs));
+    dmsg("Hit Call %d\n",*callid);
     IS_BEGIN(pregs) ?
         info->cbf[*callid](pid,pregs,ISBLOCK(info,*callid)):
         info->cef[*callid](pid,pregs,ISBLOCK(info,*callid));
-    return A_SUCC;
+    return AP_SUCC;
 }
 
 int controls(pid_t *pid,int *status,int64_t *block)
@@ -135,7 +139,7 @@ void* startMon(void* pinfo)
 
     pid_t pid = 0;
     int status = 0,tocontrols = 0,
-        callid = 0,run = 1;
+        callid = 0,run = 1,block = 0;
     while(run)
     {
         callid = 0;
@@ -163,12 +167,13 @@ void* startMon(void* pinfo)
         // 开始处理
         if(pid && status)
         {
-            enum ANALYSISRET ret = analysis(&pid,&status,info,&callid);        // 分析
+            enum APRET ret =
+                analysisPreproccess(&pid,&status,info,&callid);        // 分析与初步处理
             switch (ret) {
-            case A_SUCC:
+            case AP_SUCC:
                 tocontrols = 1;
                 break;
-            case A_TARGET_PROCESS_EXIT:
+            case AP_TARGET_PROCESS_EXIT:
                 /* 进程（包括子进程）或者线程退出
                  *
                  * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
@@ -181,8 +186,13 @@ void* startMon(void* pinfo)
                     dmsg("PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
                 continue;
                 break;
-            case A_CALL_NOT_FOUND:
+            case AP_IS_EVENT:    //事件已经被直接放行了
+                continue;
+            case AP_CALL_NOT_FOUND:
                 dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
+                break;
+            case AP_TO_BLOCK:
+                block = 1;
                 break;
             default:
                 dmsg("Unknown ANALYSISRET = %d\n",ret);
@@ -192,7 +202,7 @@ void* startMon(void* pinfo)
         }
 
         // 继续该事件
-        if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+        if(!block && ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
             dmsg("%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
         }
     }

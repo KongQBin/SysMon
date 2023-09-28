@@ -7,7 +7,7 @@
 if(WIFSIGNALED(status))/*kill -9)*/\
 {\
     printf("WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
-    return A_TARGET_PROCESS_EXIT;\
+    return AP_TARGET_PROCESS_EXIT;\
 }\
 \
 int signal = WSTOPSIG(status);\
@@ -17,7 +17,7 @@ case SIGTERM:  /*kill -15*/\
 case SIGINT:   /*Ctrl + c*/\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
-    return A_TARGET_PROCESS_EXIT;\
+    return AP_TARGET_PROCESS_EXIT;\
     break;\
 default:\
     /*dmsg("Unknown signal is %d\n",signal);*/\
@@ -41,7 +41,7 @@ case PTRACE_EVENT_VFORK:/*创建虚拟进程*/\
     getProcId(pid,status);\
     break;\
 }\
-case PTRACE_EVENT_CLONE:/*？？创建线程*/\
+case PTRACE_EVENT_CLONE:/*创建线程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_CLONE target pid is %d\n",pid);\
     getProcId(pid,status);\
@@ -62,7 +62,7 @@ case PTRACE_EVENT_EXIT:/*进程结束*/\
     dmsg("Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
 /*    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\*/\
-    return A_TARGET_PROCESS_EXIT;\
+    return AP_TARGET_PROCESS_EXIT;\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\
 {\
@@ -82,6 +82,6 @@ if(event)\
         dmsg("PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
         if(errno == 3) return errno;   /*No such process*/\
     }\
-    return A_SUCC;\
+    return AP_IS_EVENT;\
 }\
 }

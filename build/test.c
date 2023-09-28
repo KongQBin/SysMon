@@ -103,10 +103,28 @@ void testReadLink()
 //    return buf;
 }
 
+void testCreateDaemon()
+{
+    sleep(10);
+    if(daemon(1,1))
+    {
+        printf("err = %s\n",strerror(errno));
+        return;
+    }
+    int i = 5;
+    while(--i)
+    {
+        sleep(1);
+        printf("dpid = %llu\n",getpid());
+    }
+    sleep(4);
+}
+
 int main()
 {
     printf("pid is %d tid = %d\n",getpid(),gettid());
 //    testReadLink();
-    testCreateThread();
+//    testCreateThread();
+    testCreateDaemon();
 	return 0;
 }
