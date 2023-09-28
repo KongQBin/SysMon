@@ -305,7 +305,7 @@ up:
 
 /*
  * after inserting @node into the tree, update the tree to account for
- * both the new entry and any damage done by rebalance
+ * both the newnode entry and any damage done by rebalance
  */
 void rb_augment_insert(struct rb_node *node, rb_augment_f func, void *data)
 {
@@ -438,7 +438,7 @@ struct rb_node *rb_prev(const struct rb_node *node)
 }
 //EXPORT_SYMBOL(rb_prev);
 
-void rb_replace_node(struct rb_node *victim, struct rb_node *new,
+void rb_replace_node(struct rb_node *victim, struct rb_node *newnode,
 		     struct rb_root *root)
 {
 	struct rb_node *parent = rb_parent(victim);
@@ -446,18 +446,18 @@ void rb_replace_node(struct rb_node *victim, struct rb_node *new,
 	/* Set the surrounding nodes to point to the replacement */
 	if (parent) {
 		if (victim == parent->rb_left)
-			parent->rb_left = new;
+            parent->rb_left = newnode;
 		else
-			parent->rb_right = new;
+            parent->rb_right = newnode;
 	} else {
-		root->rb_node = new;
+        root->rb_node = newnode;
 	}
 	if (victim->rb_left)
-		rb_set_parent(victim->rb_left, new);
+        rb_set_parent(victim->rb_left, newnode);
 	if (victim->rb_right)
-		rb_set_parent(victim->rb_right, new);
+        rb_set_parent(victim->rb_right, newnode);
 
 	/* Copy the pointers/colour from the victim to the replacement */
-	*new = *victim;
+    *newnode = *victim;
 }
 //EXPORT_SYMBOL(rb_replace_node);
