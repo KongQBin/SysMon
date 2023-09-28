@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>
+#include "cbdefine.h"
 
 
 void testWrite()
