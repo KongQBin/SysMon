@@ -23,7 +23,7 @@ static void printUserRegsStruct(struct user_regs_struct *reg)
     printf("\n");
 }
 
-long cbExecve(struct pidinfo *info, long *regs)
+long cbExecve(CB_ARGVS)
 {
     size_t len = 0;
     char *str = NULL;
@@ -34,7 +34,7 @@ long cbExecve(struct pidinfo *info, long *regs)
     return 0;
 }
 
-long ceExecve(struct pidinfo *info, long *regs)
+long ceExecve(CB_ARGVS)
 {
 
     return 0;

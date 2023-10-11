@@ -1,6 +1,6 @@
 #include "callbacks.h"
 
-long cbWrite(struct pidinfo *info, long *regs)
+long cbWrite(CB_ARGVS)
 {
 //    printf("%llu\n",*pid);
     return 0;
@@ -50,7 +50,7 @@ long cbWrite(struct pidinfo *info, long *regs)
 //    return 0;
 }
 
-long ceWrite(struct pidinfo *info, long *regs)
+long ceWrite(CB_ARGVS)
 {
     return 0;
 //    long temp_long;

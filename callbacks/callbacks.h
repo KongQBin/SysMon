@@ -24,20 +24,20 @@ extern int getRegsStrArg(struct pidinfo *info, int arg, char **str, size_t *len)
 extern int getRealPath(struct pidinfo *info, char **str, size_t *len);              // str = 传入的是一个在堆区存放 相对路径 字符串的指针的地址，返回存放 绝对路径 的指针
 
 // 提供(监控)服务
-extern long cbOpenat(struct pidinfo *info, long *regs);
-extern long ceOpenat(struct pidinfo *info, long *regs);
+extern long cbOpenat(CB_ARGVS);
+extern long ceOpenat(CB_ARGVS);
 
-extern long cbWrite(struct pidinfo *info, long *regs);
-extern long ceWrite(struct pidinfo *info, long *regs);
+extern long cbWrite(CB_ARGVS);
+extern long ceWrite(CB_ARGVS);
 
-extern long cbClose(struct pidinfo *info, long *regs);
-extern long ceClose(struct pidinfo *info, long *regs);
+extern long cbClose(CB_ARGVS);
+extern long ceClose(CB_ARGVS);
 
-extern long cbFork(struct pidinfo *info, long *regs);
-extern long ceFork(struct pidinfo *info, long *regs);
+extern long cbFork(CB_ARGVS);
+extern long ceFork(CB_ARGVS);
 
-extern long cbClone(struct pidinfo *info, long *regs);
-extern long ceClone(struct pidinfo *info, long *regs);
+extern long cbClone(CB_ARGVS);
+extern long ceClone(CB_ARGVS);
 
-extern long cbExecve(struct pidinfo *info, long *regs);
-extern long ceExecve(struct pidinfo *info, long *regs);
+extern long cbExecve(CB_ARGVS);
+extern long ceExecve(CB_ARGVS);

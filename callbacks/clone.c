@@ -1,12 +1,12 @@
 #include "callbacks.h"
 
-long cbClone(struct pidinfo *info, long *regs)
+long cbClone(CB_ARGVS)
 {
 //    cbDoS(pid,regs);
     return 0;
 }
 
-long ceClone(struct pidinfo *info, long *regs)
+long ceClone(CB_ARGVS)
 {
 //    ceDoS(pid,regs);
 //    if(CALL(regs) & DoS())
