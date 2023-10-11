@@ -1,5 +1,5 @@
-#project(SysMon)
-#cmake_minimum_required(VERSION 2.9)
+project(SysMon)
+cmake_minimum_required(VERSION 2.9)
 include_directories(
     ./
     ./tree
@@ -13,7 +13,7 @@ include_directories(
     /usr/local/include
     )
 
-FILE(GLOB MAIN_LIST
+FILE(GLOB SYSMON_LIST
     "docs/*.h"
     "*.c" "*.h"
     "init/*.c" "init/*.h"
@@ -24,15 +24,15 @@ FILE(GLOB MAIN_LIST
     "general/*.c" "general/*.h"
     "kernel/*.c" "kernel/*.h"
 )
-list(REMOVE_ITEM MAIN_LIST "${CMAKE_CURRENT_SOURCE_DIR}/main.c")
+#list(REMOVE_ITEM SYSMON_LIST "${CMAKE_CURRENT_SOURCE_DIR}/main.c")
 FILE(GLOB TEST_LIST
     "build/*.c"
 )
-
-set(BUILD_TYPE_DEBUG on)
+#set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
 add_executable(test ${TEST_LIST})
-add_library(SysMon SHARED ${MAIN_LIST})
-#add_executable(${PROJECT_NAME} ${MAIN_LIST})
+#add_library(SysMon SHARED ${SYSMON_LIST})
+add_executable(${PROJECT_NAME} ${SYSMON_LIST})
 link_libraries(pthread)
