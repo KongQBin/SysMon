@@ -1,6 +1,6 @@
 #include "callbacks.h"
 
-long cbFork(struct pidinfo *info, long *regs)
+long cbFork(CB_ARGVS)
 {
     return 0;
 //    CALL(regs) = 10000;
@@ -9,7 +9,7 @@ long cbFork(struct pidinfo *info, long *regs)
 //    return 0;
 }
 
-long ceFork(struct pidinfo *info, long *regs)
+long ceFork(CB_ARGVS)
 {
     return 0;
 }

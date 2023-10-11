@@ -8,6 +8,9 @@
 // 可以做 运行控制,以及修改其 实参 等操作
 #define IS_BEGIN(regs)  (!IS_END(regs))
 #define IS_ARCH_64      (sizeof(void*) == sizeof(long long))
+/*            此处主要为了解决编译警告            */
+#define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
+#define gettid()        syscall(ID_GETTID)
 
 /*                    提供服务                    */
 /*宏名称（处理器位数？64位系统调用号：32位系统调用号）*/
@@ -26,6 +29,7 @@
 #define ID_KILL         (IS_ARCH_64 ? 62 : 37)
 #define ID_EXIT_GROUP   (IS_ARCH_64 ? 231 : 252)
 
-/*            此处主要为了解决编译警告            */
-#define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
-#define gettid()           syscall(ID_GETTID)
+/*                  回调函数形参                  */
+#define CB_ARGVS_TYPE(av1,av2,av3)    struct pidinfo *av1,long *av2,int av3
+#define CB_ARGVS                      CB_ARGVS_TYPE(info,regs,block)
+

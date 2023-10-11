@@ -23,7 +23,7 @@ static void printUserRegsStruct(struct user_regs_struct *reg)
     printf("\n");
 }
 
-long cbClose(struct pidinfo *info, long *regs)
+long cbClose(CB_ARGVS)
 {
 //    printUserRegsStruct(regs);
     char *path = NULL;
@@ -34,7 +34,7 @@ long cbClose(struct pidinfo *info, long *regs)
         PutMsg(createMsg(ID_CLOSE, block ? BLOCK : NBLOCK,info->gpid,info->pid,NULL,0,path,len));
     return 0;
 }
-long ceClose(struct pidinfo *info, long *regs)
+long ceClose(CB_ARGVS)
 {
 
     return 0;

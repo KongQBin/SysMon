@@ -1,10 +1,10 @@
 #include "callbacks.h"
-long cbOpenat(struct pidinfo *info, long *regs)
+long cbOpenat(CB_ARGVS)
 {
 
     return 0;
 }
-long ceOpenat(struct pidinfo *info, long *regs)
+long ceOpenat(CB_ARGVS)
 {
 
     return 0;
