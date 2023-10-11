@@ -4,32 +4,56 @@
 #include <unistd.h>
 #include <string.h>
 #include "hotinfo.h"
-enum ORIGIN
+enum ETYPE
 {
-    /* 特别关注
-     * 主要是用于在某个进程使用open/at打开文件时与预先设置的重点文件进行对比
-     * 对比成功后使用回调交由上层去处理，根据上层返回的结果选择放行或者拒绝
-     */
-    HOTFILE = 0,
     /* 非阻塞
      * 主要用于在某进程使用close关闭某个文件时，将该文件加入非阻塞队列
      * 不关心上层是否返回结果，直接放行
      */
-    NBLOCK  = 1,
+    NBLOCK  = 0,
     /* 阻塞
      * 主要用于在某进程使用execve/at拉起一个新的应用时塞入该队列进行阻塞式扫描
      * 调用回调拿到返回结果，然后选择放行或者拒绝
      */
-    BLOCK   = 2
-};
-struct BaseInfo
-{
-    pthread_t   otid;       // origin tid（消息源自哪个监控线程）
-    pid_t       tpid;       // target pid（被监控的目标进程）
-    pthread_t   ttid;       // target tid（被监控的目标进程中的哪个线程）
-    char        *path;      // 文件全路径
-    int64_t     pathlen;    // 路径长度
-    enum ORIGIN origin;     // 消息来源
+    BLOCK   = 1,
+    /* 特别关注
+     * 主要是用于在某个进程使用open/at打开文件时与预先设置的重点文件进行对比
+     * 对比成功后使用回调交由上层去处理，根据上层返回的结果选择放行或者拒绝
+     */
+    HOTFILE = 2,
 };
 
-int (*CbInfoPut)(BaseInfo *info) = NULL;
+struct CbMsg
+{
+    int          ocb;        // 消息源自哪个系统调用
+    enum ETYPE   type;       // 消息模式
+    pid_t        otid;       // 消息源自哪个监控线程
+    pid_t        gpid;       // 被监控的目标进程组
+    pid_t        pid;        // 被监控的目标进程
+    char         *exe;       // 可执行程序全路径
+    int64_t      exelen;     // 可执行程序路径长度
+    char         *path;      // 文件全路径
+    int64_t      pathlen;    // 文件路径长度
+};
+
+static inline struct CbMsg* createMsg(int ocb,enum ETYPE type,pid_t gpid,
+                               pid_t pid,char *exe,int64_t exelen,char *path,int64_t pathlen)
+{
+    struct CbMsg *msg = calloc(1,sizeof(struct CbMsg));
+    if(msg)
+    {
+        msg->ocb = ocb;
+        msg->type = type;
+        msg->otid = gettid();
+        msg->gpid = gpid;
+        msg->pid = pid;
+        msg->exe = exe;
+        msg->exelen = exelen;
+        msg->path = path;
+        msg->pathlen = pathlen;
+    }
+    return msg;
+}
+
+// 谨记:传入该回调的结构体以及其中的指针必须自行释放
+int (*PutMsg)(struct CbMsg *info);

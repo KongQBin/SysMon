@@ -10,27 +10,33 @@
  * 同一Linux线程组的线程(LWP)，是共享内存地址空间的，即共享页表。
  *
  * 而Linux线程组中的主线程的PID，在数值上等于该线程组的TGID，这个TGID对应了原理中的PID。
+ *
+ * 总的来说就是内核中不存在线程，应用层线程就是内核层进程，应用层进程就是内核层进程组
  */
+#include "general.h"
 #include "rbtree.h"
 #include "rbdef.h"
 #include <stdlib.h>
 #include <stdio.h>
 
+// 被监控的进程信息
 struct pidinfo
 {
     struct rb_node node;
-    pid_t id;           //当前被监控的线程ID（也可能是进程）
-    pid_t origin_id;    //该线程创建自哪个进程
-    pid_t trace_id;     //追踪者，也就是我们的线程ID
+    pid_t pid;                  //进程ID
+    pid_t gpid;                 //进程属于哪个进程组
+    pid_t ppid;                 //进程的父进程组（只监控追踪之后确认的关系，之前的默认为0）
 };
 
-static inline int searchCallBack(struct pidinfo *info,int id,int opt)
-{return opt ? info->id < id : info->id > id;}
-static inline int insertCallBack(struct pidinfo *info1,struct pidinfo *info2,int opt)
-{return opt ? info1->id > info2->id : info1->id < info2->id;}
-static inline void clearCallBack(struct pidinfo *info){free(info); info = NULL;}
+static inline int searchPidInfoCallBack(struct pidinfo *info,int pid,int opt)
+{return opt ? info->pid < pid : info->pid > pid;}
+static inline int insertPidInfoCallBack(struct pidinfo *info1,struct pidinfo *info2,int opt)
+{return opt ? info1->pid > info2->pid : info1->pid < info2->pid;}
+static inline void clearPidInfoCallBack(struct pidinfo *info){free(info); info = NULL;}
 
-struct pidinfo* pidSearch(struct rb_root *tree,pid_t id);      //查询
-int pidInsert(struct rb_root *tree,struct pidinfo *data);    //插入
-int pidDelete(struct rb_root *tree,pid_t id);    //插入
-void pidClear(struct rb_root *tree);                         //清空
+struct pidinfo* pidSearch(struct rb_root *tree,pid_t pid);      // 查询
+int pidInsert(struct rb_root *tree,struct pidinfo *data);       // 插入
+int pidDelete(struct rb_root *tree,pid_t pid);                  // 插入
+void pidClear(struct rb_root *tree);                            // 清空
+int64_t pidTreeSize(struct rb_root *tree);
+struct pidinfo* createPidInfo(pid_t pid,pid_t gpid,pid_t ppid); // 创建新的pidinfo

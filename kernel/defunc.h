@@ -6,7 +6,7 @@
 #define MANAGE_SIGNAL(pid,status){\
 if(WIFSIGNALED(status))/*kill -9)*/\
 {\
-    printf("WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
+    DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
     return AP_TARGET_PROCESS_EXIT;\
 }\
 \
@@ -15,12 +15,14 @@ dmsg(">>    signal is %d    <<\n",signal);\
 switch (signal) {\
 case SIGTERM:  /*kill -15*/\
 case SIGINT:   /*Ctrl + c*/\
+/*case SIGCHLD:  /*子进程结束、接收到SIGSTOP停止（挂起）和接收到SIGCONT唤醒时都会向父进程发送SIGCHLD信号*/\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
-        dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\
+        DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
     return AP_TARGET_PROCESS_EXIT;\
     break;\
 default:\
-    /*dmsg("Unknown signal is %d\n",signal);*/\
+    /*DMSG(ML_WARN,"Unknown signal is %d\n",signal);*/\
+    dmsg("Unknown signal is %d\n",signal);\
     break;\
 }\
 }
@@ -29,30 +31,31 @@ default:\
 int event = (status >> 16);\
 dmsg(">>>   get event is %d   <<<\n",event);\
 switch (event){\
-case PTRACE_EVENT_FORK:/*创建进程*/\
+case PTRACE_EVENT_FORK:/*创建进程组*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_FORK target pid is %d\n",pid);\
-    getProcId(pid,status);\
+    getProcId(PTRACE_EVENT_FORK,pid,status,info);\
     break;\
 }\
 case PTRACE_EVENT_VFORK:/*创建虚拟进程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_VFORK target pid is %d\n",pid);\
-    getProcId(pid,status);\
+    getProcId(PTRACE_EVENT_VFORK,pid,status,info);\
     break;\
 }\
-case PTRACE_EVENT_CLONE:/*创建线程*/\
+case PTRACE_EVENT_CLONE:/*创建进程*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_CLONE target pid is %d\n",pid);\
-    getProcId(pid,status);\
+    getProcId(PTRACE_EVENT_CLONE,pid,status,info);\
     break;\
 }\
 case PTRACE_EVENT_EXEC:/*运行可执行程序*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_EXEC target pid is %d\n",pid);\
+    getProcId(PTRACE_EVENT_CLONE,pid,status,info);\
     break;\
 }\
-case PTRACE_EVENT_VFORK_DONE:/*？？虚拟进程结束*/\
+case PTRACE_EVENT_VFORK_DONE:/*虚拟进程运行结束*/\
 {\
     dmsg("Event:\tPTRACE_EVENT_VFORK_DONE target pid is %d\n",pid);\
     break;\
@@ -66,12 +69,12 @@ case PTRACE_EVENT_EXIT:/*进程结束*/\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_STOP target pid is %d\n",pid);\
+    DMSG(ML_WARN,"Event:\tPTRACE_EVENT_STOP target pid is %d\n",pid);\
     break;\
 }\
 default:\
 {\
-    if(event) dmsg("Unknown event!!! target pid is %d\n",pid);\
+    if(event) dmsg("Unknown event is %d!!! Target pid is %d\n",event,pid);\
     break;\
 }\
 }\

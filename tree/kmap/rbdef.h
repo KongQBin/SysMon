@@ -1,4 +1,5 @@
 #pragma once
+#include "general.h"
 
 #define rbSearch(tree,func,id,ret){\
     struct rb_node *node = tree->rb_node;\
@@ -48,7 +49,7 @@
             rb_erase(node, tree);\
 \
             if(data) func(data);\
-            else printf("data is NULL\n");\
+            else DMSG(ML_INFO,"data is NULL\n");\
     }\
     free(tree);\
 }

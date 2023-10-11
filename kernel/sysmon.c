@@ -5,14 +5,97 @@
 PTRACE_O_TRACEEXIT|PTRACE_O_TRACECLONE|\
 PTRACE_O_TRACEFORK|PTRACE_O_TRACEVFORK)
 
-static inline void getProcId(pid_t pid,int status)
+void getProcId(int eveType,pid_t pid,int status,struct ControlInfo *info)
 {
+    return;
     pid_t spid;
     // 获取新进程的PID
     if(ptrace(PTRACE_GETEVENTMSG, pid, NULL, &spid) >= 0)
+    {
         dmsg("Child process created: %d status = %d\n", spid, status);
+        if(spid <= 0 ) return;
+        struct pidinfo *tmpInfo = pidSearch(&info->ptree,pid);
+        if(!tmpInfo)
+        {
+            dmsg("Unknown parent process\n");
+            return;
+        }
+        switch (eveType) {
+        case PTRACE_EVENT_FORK: // 进程组
+            pidInsert(&info->ptree,createPidInfo(spid,spid,tmpInfo->gpid));
+            break;
+        case PTRACE_EVENT_VFORK: // 虚拟进程
+            pidInsert(&info->ptree,createPidInfo(spid,spid,tmpInfo->gpid));
+            break;
+        case PTRACE_EVENT_CLONE: // 进程
+            pidInsert(&info->ptree,createPidInfo(spid,tmpInfo->gpid,tmpInfo->ppid));
+            break;
+        default:
+            break;
+        }
+    }
     else
         dmsg("PTRACE_GETEVENTMSG : %s(%d) pid is %d\n", strerror(errno),errno,spid);
+}
+
+int getRelationalPid(const pid_t *pid, pid_t *gpid, pid_t *ppid)
+{
+    *gpid = 0;
+    *ppid = 0;
+    int ret = 0;
+    DIR *dir = opendir("/proc");
+    if(!dir) {DMSG(ML_WARN,"opendir : %s\n",strerror(errno)); return -1;}
+    struct dirent *entry;
+    char pidPath[64] = { 0 };
+    while(entry = readdir(dir))
+    {
+        if(entry->d_name[0] == '.') continue;
+        if(DT_DIR & entry->d_type)
+        {
+            sprintf(pidPath,"/proc/%s/task/%llu",entry->d_name,*pid);
+            if(!access(pidPath,F_OK))
+            {
+                char *tmp = pidPath + strlen("/proc/");
+                char *tmpend = strstr(tmp,"/");
+                if(tmpend) tmpend[0] = '\0';
+                else {ret = -2; break;}
+
+                char *strend;
+                *gpid = strtoll(tmp,&strend,10);
+                if(strend == tmp) {*gpid = 0; ret = -3;}
+                else ret = 0;
+                tmpend[0] = '/';
+                break;
+            }
+        }
+    }
+    closedir(dir);
+
+    if(!ret)
+    {
+        // 获取 父进程 ID
+        // 该过程并不修改ret的值
+        // 因为当前ppid可有可无
+        strcat(pidPath,"/status");
+        FILE *fp = fopen(pidPath,"r");
+        if(fp)
+        {
+            char buf[128] = {0};
+            while(fgets(buf,sizeof(buf)-1,fp))
+            {
+                char *tmp = strstr(buf,"PPid:");
+                if(!tmp) continue;
+                tmp += strlen("PPid:");
+                while(++tmp[0] == ' ');
+                char *strend;
+                *ppid = strtoll(tmp,&strend,10);
+                if(strend == tmp) {*ppid = 0;}
+                break;
+            }
+            fclose(fp);
+        }
+    }
+    return ret;
 }
 
 struct rb_root *cbTree = NULL;
@@ -52,13 +135,14 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
     // 获取子进程寄存器的值
     if(ptrace(PTRACE_GETREGS, *pid, 0, &reg) < 0)
     {
-        dmsg("PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
+        DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
         return AP_REGS_READ_ERROR;
     }
 
     // printUserRegsStruct(&reg);
     long *pregs = (long*)&reg;
-    *callid = ndos(CALL(pregs));
+    if(CALL(pregs) < 0) return AP_SUCC; // 系统调用号存在等于-1的情况,原因未详细调查
+    *callid = nDoS(CALL(pregs));
 
     // 目标进程退出
     if(*callid == ID_EXIT_GROUP)
@@ -71,11 +155,36 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
             !info->cbf[*callid] :
             !info->cef[*callid])
         return AP_CALL_NOT_FOUND;
-
-    dmsg("Hit Call %d\n",*callid);
-    IS_BEGIN(pregs) ?
-        info->cbf[*callid](pid,pregs,ISBLOCK(info,*callid)):
-        info->cef[*callid](pid,pregs,ISBLOCK(info,*callid));
+    DMSG(ML_INFO,"From pid %d\tHit Call %d\n",*pid,*callid);
+    struct pidinfo *tmpInfo = pidSearch(&info->ptree,*pid);
+    if(!tmpInfo)
+    {
+        pid_t gpid = 0, ppid = 0;
+        if(!getRelationalPid(pid,&gpid,&ppid))
+        {
+            if(tmpInfo = createPidInfo(*pid,gpid,ppid))
+                pidInsert(&info->ptree,tmpInfo);
+        }
+    }
+    if(tmpInfo)
+    {
+        IS_BEGIN(pregs) ?
+            info->cbf[*callid](tmpInfo,pregs,ISBLOCK(info,*callid)):
+            info->cef[*callid](tmpInfo,pregs,ISBLOCK(info,*callid));
+    }
+    else
+    {
+        /*
+         * tmpInfo = NULL 这种情况出现的场景可能是：
+         * 一：
+         * 上述代码既没有查询到info，又在创建info时失败了
+         * 二：
+         * 目标进程组A被监控前，新的可执行程序B已经被启动
+         * 在这个进程B在退出时会通知进程组A，也会出现查询不到的情况
+         * 无需关心该问题，进程组B已经被其它监控线程监控了
+         */
+        DMSG(ML_WARN,"Current pid %d is not in ptree\n",*pid);
+    }
     return AP_SUCC;
 }
 
@@ -123,19 +232,93 @@ void registerSignal()
     sigaction(SIGUSR1, &sa, NULL);
 }
 
+pid_t *getTask(pid_t gpid)
+{
+    char taskPath[64] = { 0 };
+    sprintf(taskPath,"/proc/%llu/task",gpid);
+    DIR *dir = opendir(taskPath);
+    if(!dir) return NULL;
+
+    int pidsize = 10;
+    pid_t *pids = calloc(1,sizeof(pid_t)*pidsize); // 先开辟10个
+    if(!pids) return pids;
+
+    pid_t *index = pids;
+    struct dirent *de;
+    while((de = readdir(dir)) != NULL)
+    {
+        if (de->d_fileno == 0)
+            continue;
+        char *endptr;
+        pid_t tpid = strtoll(de->d_name,&endptr,10);
+        if(de->d_name == endptr)    //转换失败
+            continue;
+        if(tpid <= 0)               //非法的pid
+            continue;
+        *index = tpid;
+        ++index;
+        if(index == pids+pidsize)
+        {
+            pid_t *tmp = realloc(pids,pidsize+10);
+            if(tmp)
+            {
+                pids = tmp;
+                pidsize += 10;
+                memset(index, 0, 10*sizeof(pid_t*));
+            }
+            else
+            {
+                dmsg("getTask :: realloc error : %s\n",strerror(errno));
+                break;
+            }
+        }
+    }
+
+    if(labs(pids - index) == pidsize*sizeof(pid_t*)) //正好装满
+    {
+        pid_t *tmp = realloc(pids,pidsize+1);
+        if(tmp)
+        {
+            pids = tmp;
+            pidsize += 1;
+        }
+        else
+            dmsg("getTask :: end realloc error : %s\n",strerror(errno));
+    }
+    // 最后一个作为结束符号
+    // 注意如果中途realloc失败会丢失最后一个元素
+    *index = 0;
+    return pids;
+}
+
+
+
 void* startMon(void* pinfo)
 {
     struct ControlInfo *info = (struct ControlInfo *)pinfo;
     info->cpid = gettid();
     registerSignal();
 
-    dmsg("startMon pid is %d\n",info->tpid);
-    // 附加到被传入PID的进程
-    if(ptrace(PTRACE_ATTACH, info->tpid, 0, 0) < 0)
+    // 获取进程组中的所有进程
+    pid_t *tmp = getTask(info->tpid);
+    if(!tmp) return NULL;
+    pid_t *pids = tmp;
+    // 对各个进程都建立追踪
+    while(*pids)
     {
-        dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,info->tpid);
-        goto END;
+        dmsg("startMon pid is %d\n",*pids);
+        // 附加到被传入PID的进程
+        if(ptrace(PTRACE_ATTACH, *pids, 0, 0) < 0)
+        {
+            dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,*pids);
+            goto END;
+        }
+        // 添加进pid树
+        pidInsert(&info->ptree,createPidInfo(*pids,info->tpid,0));
+        ++ pids;
     }
+    free(tmp);
+
 
     pid_t pid = 0;
     int status = 0,tocontrols = 0,
@@ -174,19 +357,20 @@ void* startMon(void* pinfo)
                 tocontrols = 1;
                 break;
             case AP_TARGET_PROCESS_EXIT:
-                /* 进程（包括子进程）或者线程退出
+                /* 进程退出
                  *
                  * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
                  * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
                  */
                 tocontrols = 0;
-                printf("pid : %d to exit!\n",pid);
+                DMSG(ML_INFO,"pid : %d to exit!\n",pid);
                 // 取消对该进程的追踪，进入下一个循环
                 if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
-                    dmsg("PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+                    DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+                pidDelete(&info->ptree,pid);
                 continue;
                 break;
-            case AP_IS_EVENT:    //事件已经被直接放行了
+            case AP_IS_EVENT:    //事件已经被直接放行了,故直接continue
                 continue;
             case AP_CALL_NOT_FOUND:
                 dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
@@ -195,12 +379,11 @@ void* startMon(void* pinfo)
                 block = 1;
                 break;
             default:
-                dmsg("Unknown ANALYSISRET = %d\n",ret);
+                DMSG(ML_WARN,"Unknown ANALYSISRET = %d\n",ret);
                 break;
             }
             if(tocontrols) controls(&pid,&status,&info->block[callid]);        // 处理
         }
-
         // 继续该事件
         if(!block && ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
             dmsg("%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
@@ -208,6 +391,7 @@ void* startMon(void* pinfo)
     }
 
 END:
+    DMSG(ML_INFO,"Tree Size = %llu\n",pidTreeSize(&info->ptree));
     info->toexit = 1;
     return NULL;
 }

@@ -1,16 +1,15 @@
 #include "callbacks.h"
 
-long cbClone(pid_t *pid, long *regs, int block)
+long cbClone(struct pidinfo *info, long *regs)
 {
-//    cbDos(pid,regs);
+//    cbDoS(pid,regs);
     return 0;
 }
-int createMonThread(pid_t *pid);
 
-long ceClone(pid_t *pid, long *regs, int block)
+long ceClone(struct pidinfo *info, long *regs)
 {
-//    ceDos(pid,regs);
-//    if(CALL(regs) & dos())
+//    ceDoS(pid,regs);
+//    if(CALL(regs) & DoS())
 //    {
 //        return 0;
 //    }

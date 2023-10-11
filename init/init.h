@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include "cbtree.h"
+#include "general.h"
 
 #ifndef PTRACE_SYSEMU
     #define PTRACE_SYSEMU   31

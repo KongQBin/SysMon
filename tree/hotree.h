@@ -17,13 +17,13 @@ struct hotfile
 };
 
 
-static inline int searchCallBack(struct hotfile *file, char *fileid,int opt)
+static inline int searchHotFileCallBack(struct hotfile *file, char *fileid,int opt)
 //{return opt ? file->inode < inode : file->inode > inode;}
 {return opt ? strncmp(file->fileid,fileid,ID_MAX) < 0 : strncmp(file->fileid,fileid,ID_MAX) > 0;}
-static inline int insertCallBack(struct hotfile *file1,struct hotfile *file2,int opt)
+static inline int insertHotFileCallBack(struct hotfile *file1,struct hotfile *file2,int opt)
 //{return opt ? file1->inode > file2->inode : file1->inode < file2->inode;}
 {return opt ? strncmp(file1->fileid,file2->fileid,ID_MAX) > 0 : strncmp(file1->fileid,file2->fileid,ID_MAX) < 0;}
-static inline void clearCallBack(struct hotfile *file){free(file); file = NULL;}
+static inline void clearHotFileCallBack(struct hotfile *file){free(file); file = NULL;}
 
 void createFileId(char *fileid, int64_t inode, int64_t devid);
 struct hotfile* hotSearch(struct rb_root *tree,char *fileid);   // 查询

@@ -1,16 +1,17 @@
 #include "init.h"
 struct regs_offset g_regsOffset;
-extern long dos();
+extern long DoS();
 extern int initRegsOffset();       // 初始化寄存器偏移
 int init()
 {
     int ret = initRegsOffset();
-    printf("current process id = %d\ninitRegsOffset ret = %d\n",getpid(),ret);
-    printf("offset.call = %d\n",g_regsOffset.call);
-    printf("offset.ret = %d\n",g_regsOffset.ret);
-    printf("offset.argv1 = %d\n",g_regsOffset.argv1);
-    printf("offset.argv2 = %d\n",g_regsOffset.argv2);
-    printf("offset.argv3 = %d\n",g_regsOffset.argv3);
+    DMSG(ML_INFO,"current process id = %d\n",getpid());
+    DMSG(ML_INFO,"initRegsOffset ret = %d\n",ret);
+    DMSG(ML_INFO,"offset.call = %d\n",g_regsOffset.call);
+    DMSG(ML_INFO,"offset.ret = %d\n",g_regsOffset.ret);
+    DMSG(ML_INFO,"offset.argv1 = %d\n",g_regsOffset.argv1);
+    DMSG(ML_INFO,"offset.argv2 = %d\n",g_regsOffset.argv2);
+    DMSG(ML_INFO,"offset.argv3 = %d\n",g_regsOffset.argv3);
     return ret;
 }
 
@@ -35,7 +36,7 @@ inline int insertCallbackTree(struct rb_root *tree,long id,void *cbf,void *cef)
 inline struct syscall* searchCallbackTree(struct rb_root *tree,long id)
 {
     // 查找系统调用（如果该系统调用被拒绝服务，那么查询时要还原回去）
-    return cbSearch(tree,~dos() & id);
+    return cbSearch(tree,~DoS() & id);
 }
 
 int initRegsOffset()
@@ -49,7 +50,7 @@ int initRegsOffset()
     int fd[2] = {0};
     if(pipe(fd) < 0)
     {
-        printf("pipe err : %s\n",strerror(errno));
+        DMSG(ML_ERR,"pipe err : %s\n",strerror(errno));
         return -2;
     }
 
@@ -60,15 +61,14 @@ int initRegsOffset()
     pid_t pid = fork();
     if(pid == 0)
     {
-        printf("son pid is %d\n",getpid());
+        DMSG(ML_INFO,"son pid is %d\n",getpid());
         int fd = open("/dev/null",O_WRONLY);
-        if(fd < 0) perror("open");
+        if(fd < 0) DMSG(ML_ERR,"open : %s\n",strerror(errno));
         if(fd >= 0 && write(pw,&fd,sizeof(fd)) == sizeof(fd))
         {
             int whileNum = 10;
             while(--whileNum)
             {
-//                printf("while = %d\n",whileNum);
                 usleep(100000);
                 write(fd,msg,msgLen);
                 write(fd,msg2,msgLen2);
@@ -82,13 +82,12 @@ int initRegsOffset()
     else if(pid > 0)
     {
         usleep(300000);
-//        printf("son pid is %d\n",pid);
         if (ptrace(PTRACE_ATTACH, pid, 0, 0) == -1) {
-            perror("ptrace attach");
+            DMSG(ML_ERR,"ptrace attach : %s\n",strerror(errno));
             return -3;
         }
 //        if(ptrace(PTRACE_SYSEMU, pid, 0, 0) == -1) {
-////            perror("ptrace sysemu");
+////            DMSG(ML_ERR,"ptrace sysemu : %s\n",strerror(errno));
 ////            return -4;
 //        }
 
@@ -99,7 +98,7 @@ int initRegsOffset()
         if(read(pr,&sonFd,sizeof(sonFd)) != sizeof(sonFd))
             return -5;
 
-//        printf("sonFd = %d\n",sonFd);
+//        DMSG(ML_INFO,"sonFd is %d\n",sonFd);
         int whileNum = 20;
         memset(&g_regsOffset,-1,sizeof(g_regsOffset));
         while(--whileNum)
@@ -109,7 +108,7 @@ int initRegsOffset()
             if(!ret)
             {
                 if(ptrace(PTRACE_DETACH, pid, 0, 0) == -1 ) {
-                    perror("ptrace detach");
+                    DMSG(ML_ERR,"ptrace detach : %s\n",strerror(errno));
                 }
                 break;
             }
@@ -159,7 +158,7 @@ int initRegsOffset()
                         if(pRegs[j] == 1 || pRegs[j] == 4)
                         {
                             g_regsOffset.call = j;
-                            printf("call id is %d\n",pRegs[j]);
+                            DMSG(ML_INFO,"call id is %d\n",pRegs[j]);
                             break;
                         }
                     }
@@ -168,7 +167,7 @@ int initRegsOffset()
 
             if(g_regsOffset.call != -1) ret = 0;
             if(ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1 ) {
-                perror("ptrace syscall");
+                DMSG(ML_ERR,"ptrace syscall : %s\n",strerror(errno));
                 ret = -6;
             }
         }
@@ -177,7 +176,7 @@ int initRegsOffset()
     }
     else
     {
-        perror("initRegsOffset fork");
+        DMSG(ML_ERR,"fork : %s\n",strerror(errno));
     }
     if(pr >= 0) close(pr);
     if(pw >= 0) close(pw);

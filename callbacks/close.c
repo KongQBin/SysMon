@@ -23,18 +23,18 @@ static void printUserRegsStruct(struct user_regs_struct *reg)
     printf("\n");
 }
 
-long cbExecve(struct pidinfo *info, long *regs)
+long cbClose(struct pidinfo *info, long *regs)
 {
+//    printUserRegsStruct(regs);
+    char *path = NULL;
     size_t len = 0;
-    char *str = NULL;
-    if(!getRegsStrArg(info, ARGV_1(regs),&str,&len) && !getRealPath(info, &str, &len))
-        PutMsg(createMsg(ID_EXECVE, block ? BLOCK : NBLOCK,info->gpid,info->pid,str,len,NULL,0));
-    else
-        DMSG(ML_ERR,"getRegsStrArg err : %s\n",strerror(errno));
+    int openflag = 0;
+    if(!getFdOpenFlag(info,ARGV_1(regs),&openflag) && O_ACCMODE&openflag    /*获取openflag成功且非只读打开*/
+        && !getFdPath(info,ARGV_1(regs),&path,&len) && PutMsg)              /*获取文件路径成功且PutMsg回调非空*/
+        PutMsg(createMsg(ID_CLOSE, block ? BLOCK : NBLOCK,info->gpid,info->pid,NULL,0,path,len));
     return 0;
 }
-
-long ceExecve(struct pidinfo *info, long *regs)
+long ceClose(struct pidinfo *info, long *regs)
 {
 
     return 0;

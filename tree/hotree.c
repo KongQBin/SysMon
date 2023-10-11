@@ -4,7 +4,7 @@ struct hotfile* hotSearch(struct rb_root *tree, char *fileid)
 {
     if(!tree) return NULL;
     struct hotfile *data;
-    rbSearch(tree,searchCallBack,fileid,data);
+    rbSearch(tree,searchHotFileCallBack,fileid,data);
     return data;
 }
 
@@ -12,14 +12,14 @@ int hotInsert(struct rb_root *tree, struct hotfile *data)
 {
     if(!tree || !data) return -1;
     int ret = 0;
-    rbInsert(tree,insertCallBack,data,ret);
+    rbInsert(tree,insertHotFileCallBack,data,ret);
     return ret;
 }
 
 void hotClear(struct rb_root *tree)
 {
     if(!tree) return;
-    rbClear(tree,struct hotfile,clearCallBack);
+    rbClear(tree,struct hotfile,clearHotFileCallBack);
 }
 
 int hotDelete(struct rb_root *tree, char *fileid)
