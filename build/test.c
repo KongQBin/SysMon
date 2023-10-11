@@ -10,6 +10,7 @@
 
 void testWrite()
 {
+    sleep(8);
     char *msg = (char*)calloc(1,5);
     memcpy(msg,"12345",5);
     int i = 999;
@@ -60,21 +61,25 @@ void testFork()
 
 void *thread(void* data)
 {
-    printf("pid is %d tid = %d\n",getpid(),gettid());
-    close(1);
+    int i = 20;
+    while(--i)
+    {
+        printf("pid is %d tid = %d\n",getpid(),gettid());
+        sleep(1);
+    }
     return NULL;
 }
 
 pthread_t thread_id;
 int testCreateThread()
 {
-    sleep(10);
+//    sleep(10);
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_create(&thread_id, &attr, thread, NULL);
     pthread_attr_destroy(&attr);
-    sleep(5);
+    sleep(25);
     return 0;
 }
 
@@ -126,6 +131,7 @@ int main()
     printf("pid is %d tid = %d\n",getpid(),gettid());
 //    testReadLink();
 //    testCreateThread();
-    testCreateDaemon();
+//    testCreateDaemon();
+    testWrite();
 	return 0;
 }
