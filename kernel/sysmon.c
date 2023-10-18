@@ -50,7 +50,7 @@ int getRelationalPid(const pid_t *pid, pid_t *gpid, pid_t *ppid)
     while(entry = readdir(dir))
     {
         if(entry->d_name[0] == '.') continue;
-        if(DT_DIR & entry->d_type)
+        if(DT_DIR == entry->d_type)
         {
             sprintf(pidPath,"/proc/%s/task/%llu",entry->d_name,*pid);
             if(!access(pidPath,F_OK))
@@ -100,7 +100,6 @@ int getRelationalPid(const pid_t *pid, pid_t *gpid, pid_t *ppid)
 
 struct rb_root *cbTree = NULL;
 pid_t contpid = 0;
-pthread_t thread_id;
 
 struct threadArgs
 {
@@ -115,12 +114,13 @@ enum APRET
     AP_REGS_READ_ERROR = 2,          //寄存器读取失败
     AP_CALL_NOT_FOUND = 3,           //容器中不存在对该调用的处理
     AP_IS_EVENT = 4,                 //事件处理结束
-    AP_TO_BLOCK = 5,                 //阻塞该系统调用
+    AP_IS_SIGNAL = 5,                //信号处理结束
+    AP_TO_BLOCK = 6,                 //阻塞该系统调用
 };
 // 分析预处理
 enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, int *callid)
 {
-    dmsg(" waitpid is %d\n",*pid);
+    dmsg(" pid is %d\n",*pid);
     dmsg(">     status is %d     <\n",*status);
     /*注意这两个宏函数存在return的情况*/
     MANAGE_SIGNAL(*pid,*status);
@@ -240,7 +240,7 @@ pid_t *getTask(pid_t gpid)
     if(!dir) return NULL;
 
     int pidsize = 10;
-    pid_t *pids = calloc(1,sizeof(pid_t)*pidsize); // 先开辟10个
+    pid_t *pids = calloc(1,pidsize*sizeof(pid_t)); // 先开辟10个
     if(!pids) return pids;
 
     pid_t *index = pids;
@@ -248,6 +248,8 @@ pid_t *getTask(pid_t gpid)
     while((de = readdir(dir)) != NULL)
     {
         if (de->d_fileno == 0)
+            continue;
+        if(!de->d_name)
             continue;
         char *endptr;
         pid_t tpid = strtoll(de->d_name,&endptr,10);
@@ -259,12 +261,12 @@ pid_t *getTask(pid_t gpid)
         ++index;
         if(index == pids+pidsize)
         {
-            pid_t *tmp = realloc(pids,pidsize+10);
+            pid_t *tmp = realloc(pids,(pidsize+10)*sizeof(pid_t));
             if(tmp)
             {
                 pids = tmp;
                 pidsize += 10;
-                memset(index, 0, 10*sizeof(pid_t*));
+                memset(index, 0, 10*sizeof(pid_t));
             }
             else
             {
@@ -274,7 +276,7 @@ pid_t *getTask(pid_t gpid)
         }
     }
 
-    if(labs(pids - index) == pidsize*sizeof(pid_t*)) //正好装满
+    if(labs(pids - index) == pidsize*sizeof(pid_t)) //正好装满
     {
         pid_t *tmp = realloc(pids,pidsize+1);
         if(tmp)
@@ -293,6 +295,7 @@ pid_t *getTask(pid_t gpid)
 
 
 
+int filterGPid(const struct dirent *dir);
 void* startMon(void* pinfo)
 {
     struct ControlInfo *info = (struct ControlInfo *)pinfo;
@@ -306,7 +309,7 @@ void* startMon(void* pinfo)
     // 对各个进程都建立追踪
     while(*pids)
     {
-        dmsg("startMon pid is %d\n",*pids);
+        DMSG(ML_ERR,"startMon pid is %d\n",*pids);
         // 附加到被传入PID的进程
         if(ptrace(PTRACE_ATTACH, *pids, 0, 0) < 0)
         {
@@ -318,6 +321,7 @@ void* startMon(void* pinfo)
         ++ pids;
     }
     free(tmp);
+    tmp = NULL;
 
 
     pid_t pid = 0;
@@ -328,6 +332,7 @@ void* startMon(void* pinfo)
         callid = 0;
         status = 0;
         tocontrols = 1;
+        dmsg("rewait >>>>>>>>>>>>>>>>>>>>>>\n");
         pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
 
         // 判断pid
@@ -347,6 +352,16 @@ void* startMon(void* pinfo)
                 break;
             }
         }
+
+        // 主线程通知结束
+        if(info->toexit)
+        {
+            printf("detach pid = %d\n",pid);
+            if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
+                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+            continue;
+        }
+
         // 开始处理
         if(pid && status)
         {
@@ -370,7 +385,8 @@ void* startMon(void* pinfo)
                 pidDelete(&info->ptree,pid);
                 continue;
                 break;
-            case AP_IS_EVENT:    //事件已经被直接放行了,故直接continue
+            case AP_IS_EVENT:     //事件已经被直接放行了,故直接continue
+            case AP_IS_SIGNAL:    //部分信号已经被直接放行了,故直接continue
                 continue;
             case AP_CALL_NOT_FOUND:
                 dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
@@ -386,12 +402,13 @@ void* startMon(void* pinfo)
         }
         // 继续该事件
         if(!block && ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
-            dmsg("%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
+            DMSG(ML_WARN,"%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
         }
     }
 
 END:
     DMSG(ML_INFO,"Tree Size = %llu\n",pidTreeSize(&info->ptree));
-    info->toexit = 1;
+    if(tmp) {free(tmp); tmp = NULL;}
+    info->exit = 1;
     return NULL;
 }
