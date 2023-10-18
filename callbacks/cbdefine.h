@@ -11,6 +11,8 @@
 /*            此处主要为了解决编译警告            */
 #define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
 #define gettid()        syscall(ID_GETTID)
+#define ID_GETDENTS64           (IS_ARCH_64 ? 217 : 220)
+#define getdents64(fd,buf,size) syscall(ID_GETDENTS64,fd,buf,size)
 
 /*                    提供服务                    */
 /*宏名称（处理器位数？64位系统调用号：32位系统调用号）*/

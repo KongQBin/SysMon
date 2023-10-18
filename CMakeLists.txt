@@ -29,8 +29,10 @@ FILE(GLOB TEST_LIST
     "build/*.c"
 )
 #set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+add_definitions(-D_GNU_SOURCE)      #解决pthread_tryjoin_np警告
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
 add_executable(test ${TEST_LIST})
 #add_library(SysMon SHARED ${SYSMON_LIST})
