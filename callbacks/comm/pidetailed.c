@@ -1,13 +1,13 @@
 #include "callbacks.h"
-
+#define SYSMON_PATH_MAX 256
 int mreadlink(char *originPath, char **targetPath, size_t *len)
 {
     size_t mlen = 0, olen = 0;
     while(1)
     {
-        *targetPath = calloc(1,mlen + PATH_MAX);
+        *targetPath = calloc(1,mlen + SYSMON_PATH_MAX);
         if(!*targetPath) return -1;
-        olen = mlen + PATH_MAX;
+        olen = mlen + SYSMON_PATH_MAX;
         mlen = readlink(originPath, *targetPath, olen);
         if(mlen < olen) break;
         else free(*targetPath);
