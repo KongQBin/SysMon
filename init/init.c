@@ -166,7 +166,7 @@ int initRegsOffset()
             }
 
             if(g_regsOffset.call != -1) ret = 0;
-            if(ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1 ) {
+            if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
                 DMSG(ML_ERR,"ptrace syscall : %s\n",strerror(errno));
                 ret = -6;
             }
