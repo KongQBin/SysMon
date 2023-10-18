@@ -29,9 +29,17 @@ struct pidinfo
 };
 
 static inline int searchPidInfoCallBack(struct pidinfo *info,int pid,int opt)
-{return opt ? info->pid < pid : info->pid > pid;}
+{
+//    printf("info = %x\n",info);
+//    printf("info.pid = %d\n",info->pid);
+    return opt ? info->pid < pid : info->pid > pid;
+}
 static inline int insertPidInfoCallBack(struct pidinfo *info1,struct pidinfo *info2,int opt)
-{return opt ? info1->pid > info2->pid : info1->pid < info2->pid;}
+{
+//    printf("info1 = %x\tinfo1.pid = %d\n",info1,info1->pid);
+//    printf("info2 = %x\tinfo2.pid = %d\n",info2,info2->pid);
+    return opt ? info1->pid > info2->pid : info1->pid < info2->pid;
+}
 static inline void clearPidInfoCallBack(struct pidinfo *info){free(info); info = NULL;}
 
 struct pidinfo* pidSearch(struct rb_root *tree,pid_t pid);      // 查询

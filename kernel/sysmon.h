@@ -52,3 +52,4 @@
  */
 
 void* startMon(void* ppid);
+void* newStartMon(void* pinfo);
