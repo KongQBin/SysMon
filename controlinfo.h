@@ -16,7 +16,8 @@ struct ControlInfo
     // long (*func)(pid_t,long *); 函数指针指向的函数
     long (*cbf[512])(CB_ARGVS_TYPE(,,));        // call begin func     在执行系统调用前需要调用的函数   (4kb)
     long (*cef[512])(CB_ARGVS_TYPE(,,));        // call  end  func     在执行系统调用后需要调用的函数   (4kb)
-    int toexit;                                 // 退出对tpid的监控
+    int toexit;                                 // 退出监控
+    int exit;                                   // 已退出
 };
 #define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/64] |= 1 << CALLID%64;}
 #define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/64] ^= 1 << CALLID%64;}
