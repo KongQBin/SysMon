@@ -3,22 +3,28 @@
  * 避免真实函数调用过程中压栈出栈等操作，提高性能
  */
 
+//case SIGTRAP:   /*5*/\
+
 #define MANAGE_SIGNAL(pid,status){\
 if(WIFSIGNALED(status))/*kill -9)*/\
 {\
-    DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
-    return AP_TARGET_PROCESS_EXIT;\
+        DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
+        return AP_TARGET_PROCESS_EXIT;\
 }\
 \
 int signal = WSTOPSIG(status);\
 dmsg(">>    signal is %d    <<\n",signal);\
 switch (signal) {\
-case SIGTERM:  /*kill -15*/\
-case SIGINT:   /*Ctrl + c*/\
-/*case SIGCHLD:  /*子进程结束、接收到SIGSTOP停止（挂起）和接收到SIGCONT唤醒时都会向父进程发送SIGCHLD信号*/\
+case SIGTERM:  /* kill -15 */\
+case SIGINT:   /* 2 Ctrl + c */\
+if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
+        DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
+    return AP_IS_SIGNAL;\
+    break;\
+case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
-    return AP_TARGET_PROCESS_EXIT;\
+    return AP_IS_SIGNAL;\
     break;\
 default:\
     /*DMSG(ML_WARN,"Unknown signal is %d\n",signal);*/\
@@ -26,6 +32,17 @@ default:\
     break;\
 }\
 }
+
+/*case SIGSTOP:   /*19*/\
+/*    case 133:   /*133*/\
+/*    if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)\
+{\
+        dmsg("PTRACE_CONT : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
+        if(errno == 3) return errno;   /*No such process*/\
+/*}\
+    return AP_IS_EVENT;\
+    break;\
+*/
 
 #define MANAGE_EVENT(pid,status) {\
 int event = (status >> 16);\
