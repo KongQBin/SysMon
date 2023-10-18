@@ -20,7 +20,7 @@ extern int getFdPath(struct pidinfo *info,long fd, char **path, size_t *len);   
 extern int getFdOpenFlag(struct pidinfo *info,long fd, int *flag);                  // flag = 当前被操作描述符的打开权限    传入现有内存/栈区地址
 
 // 获取字符串参数
-extern int getRegsStrArg(struct pidinfo *info, int arg, char **str, size_t *len);   // arg = 存放参数的寄存器   str = 要获取的参数的指针，传入空指针的地址，需要手动去释放
+extern int getRegsStrArg(struct pidinfo *info, long arg, char **str, size_t *len);   // arg = 存放参数的寄存器   str = 要获取的参数的指针，传入空指针的地址，需要手动去释放
 extern int getRealPath(struct pidinfo *info, char **str, size_t *len);              // str = 传入的是一个在堆区存放 相对路径 字符串的指针的地址，返回存放 绝对路径 的指针
 
 // 提供(监控)服务
