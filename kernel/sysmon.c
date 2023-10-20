@@ -324,26 +324,11 @@ void* newStartMon(void* pinfo)
         gpid = strtoll(namelist[i]->d_name,&strend,10);
         if(gpid && strend != namelist[i]->d_name)
         {
-            switch (gpid) {
-            case 0 ... 1700:
-                continue;
-                break;
-            case 2200 ... 99999:
-                continue;
-                break;
-            default:
-                break;
-            }
+//            if(gpid != 3478) continue;
 //            // 获取进程组中的所有进程
-            printf("gpid = %d\t",gpid);
-
             tmp = getTask(gpid);
             if(!tmp) return NULL;
-
-            if(fp)
-            {
-                fprintf(fp,"%d\n",gpid);
-            }
+            if(fp) fprintf(fp,"%d\n",gpid);
 
             pid_t *pids = tmp;
             // 对各个进程都建立追踪
@@ -362,9 +347,8 @@ void* newStartMon(void* pinfo)
     fclose(fp);
 
     printf("BBB\n");
-//    return NULL;
 
-    int num = 100;
+    int num = pidsslen;
     for(int i=0;i < (num > pidsslen ? pidsslen : num);++i)
     {
         if(pidss[i] == 0) continue;
