@@ -32,11 +32,16 @@ static char color[][32] = {
     //    "\033[0;32;32m",         // 暗绿
 };
 
+#define mdebug 0
+#if mdebug
 #define dmsg(fmt, ...)\
 {\
     printf("%llu ",gettid());\
     printf(fmt,##__VA_ARGS__);\
 }
+#else
+#define dmsg(fmt, ...)
+#endif
 
 #define SPIK_LEVEN(level) if(/*level == ML_INFO*/0) break;
 #define NCOLOR          "\033[m"    /* 清除颜色 */
