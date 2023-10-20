@@ -3,8 +3,6 @@
  * 避免真实函数调用过程中压栈出栈等操作，提高性能
  */
 
-//case SIGTRAP:   /*5*/\
-
 #define MANAGE_SIGNAL(pid,status){\
 if(WIFSIGNALED(status))/*kill -9)*/\
 {\
@@ -12,37 +10,20 @@ if(WIFSIGNALED(status))/*kill -9)*/\
         return AP_TARGET_PROCESS_EXIT;\
 }\
 \
-int signal = WSTOPSIG(status);\
+int tmp = WSTOPSIG(status);\
+int signal = (tmp & 0x7F);\
 dmsg(">>    signal is %d    <<\n",signal);\
 switch (signal) {\
-case SIGTERM:  /* kill -15 */\
-case SIGINT:   /* 2 Ctrl + c */\
-if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
-        DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
-    return AP_IS_SIGNAL;\
+case SIGTRAP:  /* kill -5 */\
+case SIGSTOP:   /*19*/\
     break;\
-case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
+default:\
     if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
     return AP_IS_SIGNAL;\
     break;\
-default:\
-    /*DMSG(ML_WARN,"Unknown signal is %d\n",signal);*/\
-    dmsg("Unknown signal is %d\n",signal);\
-    break;\
 }\
 }
-
-/*case SIGSTOP:   /*19*/\
-/*    case 133:   /*133*/\
-/*    if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)\
-{\
-        dmsg("PTRACE_CONT : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
-        if(errno == 3) return errno;   /*No such process*/\
-/*}\
-    return AP_IS_EVENT;\
-    break;\
-*/
 
 #define MANAGE_EVENT(pid,status) {\
 int event = (status >> 16);\
