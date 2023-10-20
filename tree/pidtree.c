@@ -34,7 +34,7 @@ struct pidinfo *pidSearch(struct rb_root *tree, pid_t id)
 
 int pidDelete(struct rb_root *tree, pid_t id)
 {
-    DMSG(ML_ERR,"pidDelete\n");
+//    DMSG(ML_ERR,"pidDelete\n");
 //    printf("pidDelete\n");
     if(!tree) return -1;
     struct pidinfo *info = pidSearch(tree,id);
