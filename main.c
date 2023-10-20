@@ -21,12 +21,12 @@ int createMonThread(pid_t pid)
     // 设置被监控的ID
     info->tpid = pid;
     // 设置监控到关注的系统调用，在其执行前后的调用函数
-    SETFUNC(info,ID_WRITE,cbWrite,ceWrite);
-    SETFUNC(info,ID_FORK,cbFork,ceFork);
-    SETFUNC(info,ID_CLONE,cbClone,ceClone);
+//    SETFUNC(info,ID_WRITE,cbWrite,ceWrite);
+//    SETFUNC(info,ID_FORK,cbFork,ceFork);
+//    SETFUNC(info,ID_CLONE,cbClone,ceClone);
     SETFUNC(info,ID_EXECVE,cbExecve,ceExecve);
     SETFUNC(info,ID_CLOSE,cbClose,ceClose);
-    SETFUNC(info,ID_OPENAT,cbOpenat,ceOpenat);
+//    SETFUNC(info,ID_OPENAT,cbOpenat,ceOpenat);
     info->ptree.rb_node = NULL;
     info->ftree.rb_node = NULL;
     // 设置阻塞模式
@@ -63,20 +63,21 @@ int printMsg(struct CbMsg *info)
     }
 
     do{
-        if(info->path && (info->path[0] == 'p' || info->path[0] == 's'))
-            break;
 //        DMSG(level,
 //             "info.otid = %llu\tinfo.type = %llu\t"
 //             "info.gpid = %llu\tinfo.pid = %llu\n",
 //             info->otid,info->type,info->gpid,info->pid);
         if(info->exe)
             DMSG(level,
-                 "info.exelen  = %llu\tinfo.exe = %s\n",
+                 "info.exelen  = %llu\tinfo.exe  = %s\n",
                  info->exelen,info->exe);
         if(info->path)
+        {
+            if(info->path[0] != '/') break;
             DMSG(level,
                  "info.pathlen = %llu\tinfo.path = %s\n",
                  info->pathlen,info->path);
+        }
     }while(0);
 
     if(info->exe)  free(info->exe);
@@ -85,40 +86,49 @@ int printMsg(struct CbMsg *info)
     return 0;
 }
 
+int mreadlinkFilter(char *originPath)
+{
+    int ret = 0;
+    size_t mlen = 0, olen = 0;
+    char *targetPath = NULL;
+    while(1)
+    {
+        targetPath = calloc(1,mlen + 256);
+        if(!targetPath) {ret = 1; break;}
+        olen = mlen + 256;
+        mlen = readlink(originPath, targetPath, olen);
+        if(!targetPath) {ret = 1; break;}
+        if(mlen < olen) break;
+        else {free(targetPath);targetPath = NULL;}
+    }
+    if(!ret && targetPath)
+    {
+        // 内核进程没有exe
+        if(!strlen(targetPath))
+            ret = 1;
+        // Xorg但凡使用图形化就会刷新，也不监控
+        char *index = NULL;
+        if((index = strstr(targetPath,"Xorg")) != NULL)
+        {
+            if((index + strlen("Xorg"))[0] == '\0')
+                ret = 1;
+        }
+    }
+    if(targetPath) free(targetPath);
+    return ret;
+}
+
+// 过滤进程组
 int filterGPid(const struct dirent *dir)
 {
-    if(dir->d_type != DT_DIR)   return 0;       // 不是目录
-
-    char *procPath = "/proc";
+    if(dir->d_type != DT_DIR)       return 0;       // 不是目录
     char statusPath[64] = { 0 };
-    snprintf(statusPath,sizeof(statusPath)-1,"%s/%s/status",procPath,dir->d_name);
-    if(access(statusPath,F_OK)) return 0;       // 目录中没有status文件
-
-    FILE *fp = fopen(statusPath,"r");
-    if(!fp)         return 0;                   //文件打开失败
-    char tmp[256] = {0};
-    int spik = 0;
-    while(fgets(tmp,sizeof(tmp)-1,fp))
-    {
-        char *tmpp = strstr(tmp,"PPid:");
-        if(!tmpp)    continue;
-        tmpp += strlen("PPid:");
-        while(++tmpp[0] == ' ');
-
-        pid_t ppid = 0;
-        char *strend;
-        ppid = strtoll(tmpp,&strend,10);
-        if(strend == tmpp)      spik = 1;     // 转换失败
-        if(ppid == 2)           spik = 1;     // 父进程等于2
-        break;
-    }
-    fclose(fp);
-    if(spik) return 0;
-
+    snprintf(statusPath,sizeof(statusPath)-1,"/proc/%s/exe",dir->d_name);
+    if(access(statusPath,F_OK))     return 0;       // 目录中没有exe文件
+    if(mreadlinkFilter(statusPath)) return 0;
     char *strend;
     pid_t gpid = strtoll(dir->d_name,&strend,10);
-    if(dir->d_name != strend
-        && (gpid == getpid() || gpid == 2)) return 0;   //转换成功且（pid等于自身或等于kthread）
+    if(dir->d_name != strend && (gpid == getpid())) return 0;   //转换成功且pid等于自身
     return 1;
 }
 int startSysMon()
