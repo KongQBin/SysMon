@@ -8,7 +8,8 @@
 // 调用前的情况,此时该系统调用还未开始执行
 // 可以做 运行控制,以及修改其 实参 等操作
 #define IS_BEGIN(regs)  (!IS_END(regs))
-#define IS_ARCH_64      (sizeof(void*) == sizeof(long long))
+//#define IS_ARCH_64      (sizeof(void*) == sizeof(long long))
+#define IS_ARCH_64      (__WORDSIZE == 64)
 /*            此处主要为了解决编译警告            */
 #define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
 #define gettid()        syscall(ID_GETTID)

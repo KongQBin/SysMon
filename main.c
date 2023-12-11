@@ -63,13 +63,15 @@ int printMsg(struct CbMsg *info)
     }
 
     do{
+        if(info->path && (info->path[0] == 'p' || info->path[0] == 's'))
+            break;
 //        DMSG(level,
 //             "info.otid = %llu\tinfo.type = %llu\t"
 //             "info.gpid = %llu\tinfo.pid = %llu\n",
 //             info->otid,info->type,info->gpid,info->pid);
         if(info->exe)
             DMSG(level,
-                 "info.exelen  = %llu\tinfo.exe  = %s\n",
+                 "info.exelen  = %llu\tinfo.exe = %s\n",
                  info->exelen,info->exe);
         if(info->path)
         {
@@ -134,9 +136,7 @@ int filterGPid(const struct dirent *dir)
 int startSysMon()
 {
     createMonThread(0);
-//    return 0;
-
-
+    return 0;
     const char *directory = "/proc";
     struct dirent **namelist;
     int num_entries;
@@ -180,13 +180,12 @@ int main(int argc, char** argv)
     signal(SIGINT,sigOptions);  // Ctrl + c
     signal(SIGTERM,sigOptions); // kill -15
     int ret = init();
-    return 0;
-
 //    createMonThread(atoi(argv[1]));
 //    sleep(2);
 //    createMonThread(atoi(argv[2]));
 
     startSysMon();
+
 
     sleep(10);
     while(!gmaintoexit)

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include "cbdefine.h"
 
 // MsgLevel与color的元素个数必须对应，否则将会触发段错误
@@ -12,6 +13,7 @@ enum MsgLevel
     ML_INFO,               // 通用信息
     ML_INFO_PROC,          // 进程监控相关
     ML_INFO_FILE,          // 文件监控相关
+    ML_INFO_EVENT,         // 进程事件
 };
 
 static char color[][32] = {
@@ -30,6 +32,7 @@ static char color[][32] = {
     //    "\033[0;32;34m",         // 暗蓝
     "\033[1;32m",            // 亮绿
     //    "\033[0;32;32m",         // 暗绿
+    "\033[1;35m",            // 紫色
 };
 
 #define mdebug 1
@@ -53,5 +56,6 @@ do{\
     printf("[%s:%d]:\t",__FILE__,__LINE__);\
     printf(fmt,##__VA_ARGS__);\
     printf(NCOLOR);\
+    fflush(stdout);\
 }while(0);\
 }

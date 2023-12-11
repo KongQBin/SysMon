@@ -118,25 +118,28 @@ enum APRET
     AP_TO_BLOCK = 6,                 //阻塞该系统调用
 };
 // 分析预处理
-enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, int *callid)
+
+enum APRET analysisPreproccess(siginfo_t *siginfo,struct ControlInfo *info, int *callid)
 {
-    dmsg(" pid is %d\n",*pid);
-    dmsg(">     status is %d     <\n",*status);
+    dmsg(" pid is %d\n",siginfo->si_pid);
+    dmsg(">     status is %d     <\n",siginfo->si_status);
     /*注意这两个宏函数存在return的情况*/
-    MANAGE_SIGNAL(*pid,*status);
-    MANAGE_EVENT(*pid,*status);
+
+    MANAGE_SIGNAL(siginfo->si_pid,siginfo->si_status);
+    MANAGE_EVENT(siginfo->si_pid,siginfo->si_status);
 
     // 设置下次监控的类型
-    if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN))
-        dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
+    if(ptrace(PTRACE_SETOPTIONS, siginfo->si_pid, NULL, EVENT_CONCERN))
+        dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),siginfo->si_pid);
 
 //    struct user_regs_struct reg;
     struct user user;
     memset(&user.regs,0,sizeof(user.regs));
     // 获取子进程寄存器的值
-    if(ptrace(PT_GETREGS, *pid, 0, &user.regs) < 0)
+
+    if(ptrace(PT_GETREGS, siginfo->si_pid, 0, &user.regs) < 0)
     {
-        DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
+        DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),siginfo->si_pid);
         return AP_REGS_READ_ERROR;
     }
 
@@ -156,14 +159,14 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
             !info->cbf[*callid] :
             !info->cef[*callid])
         return AP_CALL_NOT_FOUND;
-    DMSG(ML_INFO,"From pid %d\tHit Call %d\n",*pid,*callid);
-    struct pidinfo *tmpInfo = pidSearch(&info->ptree,*pid);
+    DMSG(ML_INFO,"From pid %d\tHit Call %d\n",siginfo->si_pid,*callid);
+    struct pidinfo *tmpInfo = pidSearch(&info->ptree,siginfo->si_pid);
     if(!tmpInfo)
     {
         pid_t gpid = 0, ppid = 0;
-        if(!getRelationalPid(pid,&gpid,&ppid))
+        if(!getRelationalPid(&siginfo->si_pid,&gpid,&ppid))
         {
-            if(tmpInfo = createPidInfo(*pid,gpid,ppid))
+            if(tmpInfo = createPidInfo(siginfo->si_pid,gpid,ppid))
                 pidInsert(&info->ptree,tmpInfo);
         }
     }
@@ -184,7 +187,7 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
          * 在这个进程B在退出时会通知进程组A，也会出现查询不到的情况
          * 无需关心该问题，进程组B已经被其它监控线程监控了
          */
-        DMSG(ML_WARN,"Current pid %d is not in ptree\n",*pid);
+        DMSG(ML_WARN,"Current pid %d is not in ptree\n",siginfo->si_pid);
     }
     return AP_SUCC;
 }
@@ -294,10 +297,8 @@ pid_t *getTask(pid_t gpid)
     return pids;
 }
 
-
-
 int filterGPid(const struct dirent *dir);
-void* newStartMon(void* pinfo)
+void* startMon(void* pinfo)
 {
     struct ControlInfo *info = (struct ControlInfo *)pinfo;
     info->cpid = gettid();
@@ -334,7 +335,7 @@ void* newStartMon(void* pinfo)
 
             pid_t *pids = tmp;
             // 对各个进程都建立追踪
-            while(*pids && pidsslen < 1024)
+            while(*pids)
             {
                 printf("*pids = %d\n",*pids);
                 pidss[pidsslen] = *pids;
@@ -367,18 +368,22 @@ void* newStartMon(void* pinfo)
 
     pid_t pid = 0;
     int status = 0,tocontrols = 0,
-        callid = 0,run = 1,block = 0;
+        callid = 0,run = 1,block = 0,waitidret = 0;
+    siginfo_t siginfo;
+    memset(&siginfo,0,sizeof(siginfo_t));
     while(run)
     {
         callid = 0;
         status = 0;
         tocontrols = 1;
         dmsg("rewait >>>>>>>>>>>>>>>>>>>>>>");
+        // waitid(P_ALL, 存在监控其它并非自己ATTACH的进程组的问题，会导致逻辑混乱
+        // waitid(P_PGID, 存在不监控其它进程组的问题，需要另外拉起一个进程去等待新创建的进程组，否则新的进程组会一直阻塞
         pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
-
         // 判断pid
-        if(pid == -1)
+        if(waitidret == -1)
         {
+            DMSG(ML_ERR,"waitidret = -1 errno = %d\n",errno);
             switch (errno) {
             case ECHILD:    // 没有被追踪的进程了
                 run = 0;
@@ -404,10 +409,10 @@ void* newStartMon(void* pinfo)
         }
 
         // 开始处理
-        if(pid && status)
+        if(siginfo.si_pid && siginfo.si_status)
         {
             enum APRET ret =
-                analysisPreproccess(&pid,&status,info,&callid);        // 分析与初步处理
+                analysisPreproccess(&siginfo,info,&callid);        // 分析与初步处理
             switch (ret) {
             case AP_SUCC:
                 tocontrols = 1;
