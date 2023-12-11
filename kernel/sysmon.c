@@ -298,7 +298,7 @@ pid_t *getTask(pid_t gpid)
 }
 
 int filterGPid(const struct dirent *dir);
-void* startMon(void* pinfo)
+void* newStartMon(void* pinfo)
 {
     struct ControlInfo *info = (struct ControlInfo *)pinfo;
     info->cpid = gettid();
@@ -459,119 +459,120 @@ END:
     return NULL;
 }
 
-void* startMon(void* pinfo)
-{
-    struct ControlInfo *info = (struct ControlInfo *)pinfo;
-    info->cpid = gettid();
-    registerSignal();
 
-    // 获取进程组中的所有进程
-    pid_t *tmp = getTask(info->tpid);
-    if(!tmp) return NULL;
-    pid_t *pids = tmp;
-    // 对各个进程都建立追踪
-    while(*pids)
-    {
-        DMSG(ML_INFO,"startMon pid is %d\n",*pids);
-        // 附加到被传入PID的进程
-        if(ptrace(PTRACE_ATTACH, *pids, 0, 0) < 0)
-        {
-            dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,*pids);
-            goto END;
-        }
-        // 添加进pid树
-        pidInsert(&info->ptree,createPidInfo(*pids,info->tpid,0));
-        ++ pids;
-    }
-    free(tmp);
-    tmp = NULL;
-
-
-    pid_t pid = 0;
-    int status = 0,tocontrols = 0,
-        callid = 0,run = 1,block = 0;
-    while(run)
-    {
-        callid = 0;
-        status = 0;
-        tocontrols = 1;
-        dmsg("rewait >>>>>>>>>>>>>>>>>>>>>>");
-        pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
-
-        // 判断pid
-        if(pid == -1)
-        {
-            switch (errno) {
-            case ECHILD:    // 没有被追踪的进程了
-                run = 0;
-            case EINTR:     // 被信号打断
-                continue;
-                break;
-            case EINVAL:    // 无效参数
-            default:        // 其它错误
-                run = 0;
-                dmsg("%s\n",strerror(errno));
-                continue;
-                break;
-            }
-        }
-
-        // 主线程通知结束
-        if(info->toexit)
-        {
-            printf("detach pid = %d\n",pid);
-            if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
-                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
-            continue;
-        }
-
-        // 开始处理
-        if(pid && status)
-        {
-            enum APRET ret =
-                analysisPreproccess(&pid,&status,info,&callid);        // 分析与初步处理
-            switch (ret) {
-            case AP_SUCC:
-                tocontrols = 1;
-                break;
-            case AP_TARGET_PROCESS_EXIT:
-                /* 进程退出
-                 *
-                 * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
-                 * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
-                 */
-                tocontrols = 0;
-                DMSG(ML_INFO,"pid : %d to exit!\n",pid);
-                // 取消对该进程的追踪，进入下一个循环
-                if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
-                    DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
-                pidDelete(&info->ptree,pid);
-                continue;
-                break;
-            case AP_IS_EVENT:     //事件已经被直接放行了,故直接continue
-            case AP_IS_SIGNAL:    //部分信号已经被直接放行了,故直接continue
-                continue;
-            case AP_CALL_NOT_FOUND:
-                dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
-                break;
-            case AP_TO_BLOCK:
-                block = 1;
-                break;
-            default:
-                DMSG(ML_WARN,"Unknown ANALYSISRET = %d\n",ret);
-                break;
-            }
-            if(tocontrols) controls(&pid,&status,&info->block[callid]);        // 处理
-        }
-        // 继续该事件
-        if(!block && ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
-            DMSG(ML_WARN,"%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
-        }
-    }
-
-END:
-    DMSG(ML_INFO,"Tree Size = %llu\n",pidTreeSize(&info->ptree));
-    if(tmp) {free(tmp); tmp = NULL;}
-    info->exit = 1;
-    return NULL;
-}
+//void* startMon(void* pinfo)
+//{
+//    struct ControlInfo *info = (struct ControlInfo *)pinfo;
+//    info->cpid = gettid();
+//    registerSignal();
+//
+//    // 获取进程组中的所有进程
+//    pid_t *tmp = getTask(info->tpid);
+//    if(!tmp) return NULL;
+//    pid_t *pids = tmp;
+//    // 对各个进程都建立追踪
+//    while(*pids)
+//    {
+//        DMSG(ML_INFO,"startMon pid is %d\n",*pids);
+//        // 附加到被传入PID的进程
+//        if(ptrace(PTRACE_ATTACH, *pids, 0, 0) < 0)
+//        {
+//            dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,*pids);
+//            goto END;
+//        }
+//        // 添加进pid树
+//        pidInsert(&info->ptree,createPidInfo(*pids,info->tpid,0));
+//        ++ pids;
+//    }
+//    free(tmp);
+//    tmp = NULL;
+//
+//
+//    pid_t pid = 0;
+//    int status = 0,tocontrols = 0,
+//        callid = 0,run = 1,block = 0;
+//    while(run)
+//    {
+//        callid = 0;
+//        status = 0;
+//        tocontrols = 1;
+//        dmsg("rewait >>>>>>>>>>>>>>>>>>>>>>");
+//        pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
+//
+//        // 判断pid
+//        if(pid == -1)
+//        {
+//            switch (errno) {
+//            case ECHILD:    // 没有被追踪的进程了
+//                run = 0;
+//            case EINTR:     // 被信号打断
+//                continue;
+//                break;
+//            case EINVAL:    // 无效参数
+//            default:        // 其它错误
+//                run = 0;
+//                dmsg("%s\n",strerror(errno));
+//                continue;
+//                break;
+//            }
+//        }
+//
+//        // 主线程通知结束
+//        if(info->toexit)
+//        {
+//            printf("detach pid = %d\n",pid);
+//            if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
+//                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+//            continue;
+//        }
+//
+//        // 开始处理
+//        if(pid && status)
+//        {
+//            enum APRET ret =
+//                analysisPreproccess(&pid,&status,info,&callid);        // 分析与初步处理
+//            switch (ret) {
+//            case AP_SUCC:
+//                tocontrols = 1;
+//                break;
+//            case AP_TARGET_PROCESS_EXIT:
+//                /* 进程退出
+//                 *
+//                 * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
+//                 * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
+//                 */
+//                tocontrols = 0;
+//                DMSG(ML_INFO,"pid : %d to exit!\n",pid);
+//                // 取消对该进程的追踪，进入下一个循环
+//                if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
+//                    DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+//                pidDelete(&info->ptree,pid);
+//                continue;
+//                break;
+//            case AP_IS_EVENT:     //事件已经被直接放行了,故直接continue
+//            case AP_IS_SIGNAL:    //部分信号已经被直接放行了,故直接continue
+//                continue;
+//            case AP_CALL_NOT_FOUND:
+//                dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
+//                break;
+//            case AP_TO_BLOCK:
+//                block = 1;
+//                break;
+//            default:
+//                DMSG(ML_WARN,"Unknown ANALYSISRET = %d\n",ret);
+//                break;
+//            }
+//            if(tocontrols) controls(&pid,&status,&info->block[callid]);        // 处理
+//        }
+//        // 继续该事件
+//        if(!block && ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+//            DMSG(ML_WARN,"%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,pid);
+//        }
+//    }
+//
+//END:
+//    DMSG(ML_INFO,"Tree Size = %llu\n",pidTreeSize(&info->ptree));
+//    if(tmp) {free(tmp); tmp = NULL;}
+//    info->exit = 1;
+//    return NULL;
+//}
