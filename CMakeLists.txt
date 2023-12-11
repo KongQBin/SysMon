@@ -1,4 +1,4 @@
-project(SysMon)
+project(SysMon2)
 cmake_minimum_required(VERSION 2.9)
 include_directories(
     ./
@@ -29,7 +29,7 @@ FILE(GLOB TEST_LIST
     "build/*.c"
 )
 #set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_BUILD_TYPE "Debug")
+#set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 add_definitions(-D_GNU_SOURCE)      #解决pthread_tryjoin_np警告

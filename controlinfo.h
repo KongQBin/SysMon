@@ -8,7 +8,7 @@ struct pidinfo;
 struct ControlInfo
 {
     pid_t cpid;                                 // 当前进行监控的线程ID
-    pid_t tpid;                                 // 要监控的目标进程ID
+    pid_t tpid;                                 // 要监控的目标进程组ID
     int64_t block[8];                           // 用来判断与bloom对应的系统调用是否需要阻塞
     struct rb_root ptree;                       // 被该线程监控到的进程树
     struct rb_root ftree;                       // 特别关注的文件，目的是在进行特定的文件操作时进行阻塞

@@ -167,12 +167,11 @@ int main(int argc, char** argv)
     signal(SIGTERM,sigOptions); // kill -15
     int ret = init();
 
-
-//    createMonThread(atoi(argv[1]));
+    createMonThread(atoi(argv[1]));
 //    sleep(2);
 //    createMonThread(atoi(argv[2]));
 
-    startSysMon();
+//    startSysMon();
 
     sleep(10);
     while(!gmaintoexit)

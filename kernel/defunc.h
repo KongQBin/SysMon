@@ -5,26 +5,35 @@
 
 //case SIGTRAP:   /*5*/\
 
+/* 0000 0000
+ * 1 位 信号来源 如果来自内核 = 1 来自用户 = 0
+ * 其余位为信号的值
+*/
+
+
+/*if(WIFSIGNALED(signal))/*kill -9)*/\
+/*    {\
+            DMSG(ML_INFO,"WIFSIGNALED exit status is %d\n",signal);\
+            return AP_TARGET_PROCESS_EXIT;\
+    }\
+*/
 #define MANAGE_SIGNAL(pid,status){\
-if(WIFSIGNALED(status))/*kill -9)*/\
-{\
-        DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
-        return AP_TARGET_PROCESS_EXIT;\
-}\
-\
-int signal = WSTOPSIG(status);\
+int signal = (status & 0xFF) ^ (1 << 7);\
 dmsg(">>    signal is %d    <<\n",signal);\
 switch (signal) {\
 case SIGTERM:  /* kill -15 */\
 case SIGINT:   /* 2 Ctrl + c */\
-if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
+if (ptrace(PTRACE_CONT, pid, NULL, status) < 0)\
         DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
     return AP_IS_SIGNAL;\
     break;\
 case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
-    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
+    if (ptrace(PTRACE_CONT, pid, NULL, status) < 0){\
         DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
-    return AP_IS_SIGNAL;\
+        return AP_IS_SIGNAL;\
+    }\
+    break;\
+case SIGTRAP:  /* kill -5 */\
     break;\
 default:\
     /*DMSG(ML_WARN,"Unknown signal is %d\n",signal);*/\
@@ -45,53 +54,53 @@ default:\
 */
 
 #define MANAGE_EVENT(pid,status) {\
-int event = (status >> 16);\
+int event = (status >> 8);\
 dmsg(">>>   get event is %d   <<<\n",event);\
 switch (event){\
 case PTRACE_EVENT_FORK:/*创建进程组*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_FORK target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_FORK target pid is %d\n",pid);\
     getProcId(PTRACE_EVENT_FORK,pid,status,info);\
     break;\
 }\
 case PTRACE_EVENT_VFORK:/*创建虚拟进程*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_VFORK target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_VFORK target pid is %d\n",pid);\
     getProcId(PTRACE_EVENT_VFORK,pid,status,info);\
     break;\
 }\
 case PTRACE_EVENT_CLONE:/*创建进程*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_CLONE target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_CLONE target pid is %d\n",pid);\
     getProcId(PTRACE_EVENT_CLONE,pid,status,info);\
     break;\
 }\
 case PTRACE_EVENT_EXEC:/*运行可执行程序*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_EXEC target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_EXEC target pid is %d\n",pid);\
     getProcId(PTRACE_EVENT_CLONE,pid,status,info);\
     break;\
 }\
 case PTRACE_EVENT_VFORK_DONE:/*虚拟进程运行结束*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_VFORK_DONE target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_VFORK_DONE target pid is %d\n",pid);\
     break;\
 }\
 case PTRACE_EVENT_EXIT:/*进程结束*/\
 {\
-    dmsg("Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
 /*    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\*/\
     return AP_TARGET_PROCESS_EXIT;\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\
 {\
-    DMSG(ML_WARN,"Event:\tPTRACE_EVENT_STOP target pid is %d\n",pid);\
+    DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_STOP target pid is %d\n",pid);\
     break;\
 }\
 default:\
 {\
-    if(event) dmsg("Unknown event is %d!!! Target pid is %d\n",event,pid);\
+    if(event) DMSG(ML_INFO_EVENT,"Unknown event is %d!!! Target pid is %d\n",event,pid);\
     break;\
 }\
 }\
@@ -99,7 +108,7 @@ if(event)\
 {\
     if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)\
     {\
-        dmsg("PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
+        DMSG(ML_INFO_EVENT,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
         if(errno == 3) return errno;   /*No such process*/\
     }\
     return AP_IS_EVENT;\

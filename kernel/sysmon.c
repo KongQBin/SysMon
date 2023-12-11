@@ -118,24 +118,26 @@ enum APRET
     AP_TO_BLOCK = 6,                 //阻塞该系统调用
 };
 // 分析预处理
-enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, int *callid)
+
+enum APRET analysisPreproccess(siginfo_t *siginfo,struct ControlInfo *info, int *callid)
 {
-    dmsg(" pid is %d\n",*pid);
-    dmsg(">     status is %d     <\n",*status);
+    dmsg(" pid is %d\n",siginfo->si_pid);
+    dmsg(">     status is %d     <\n",siginfo->si_status);
     /*注意这两个宏函数存在return的情况*/
-    MANAGE_SIGNAL(*pid,*status);
-    MANAGE_EVENT(*pid,*status);
+
+    MANAGE_SIGNAL(siginfo->si_pid,siginfo->si_status);
+    MANAGE_EVENT(siginfo->si_pid,siginfo->si_status);
 
     // 设置下次监控的类型
-    if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN))
-        dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
+    if(ptrace(PTRACE_SETOPTIONS, siginfo->si_pid, NULL, EVENT_CONCERN))
+        dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),siginfo->si_pid);
 
     struct user_regs_struct reg;
     memset(&reg,0,sizeof(reg));
     // 获取子进程寄存器的值
-    if(ptrace(PTRACE_GETREGS, *pid, 0, &reg) < 0)
+    if(ptrace(PTRACE_GETREGS, siginfo->si_pid, 0, &reg) < 0)
     {
-        DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
+        DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),siginfo->si_pid);
         return AP_REGS_READ_ERROR;
     }
 
@@ -155,14 +157,14 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
             !info->cbf[*callid] :
             !info->cef[*callid])
         return AP_CALL_NOT_FOUND;
-    DMSG(ML_INFO,"From pid %d\tHit Call %d\n",*pid,*callid);
-    struct pidinfo *tmpInfo = pidSearch(&info->ptree,*pid);
+    DMSG(ML_INFO,"From pid %d\tHit Call %d\n",siginfo->si_pid,*callid);
+    struct pidinfo *tmpInfo = pidSearch(&info->ptree,siginfo->si_pid);
     if(!tmpInfo)
     {
         pid_t gpid = 0, ppid = 0;
-        if(!getRelationalPid(pid,&gpid,&ppid))
+        if(!getRelationalPid(&siginfo->si_pid,&gpid,&ppid))
         {
-            if(tmpInfo = createPidInfo(*pid,gpid,ppid))
+            if(tmpInfo = createPidInfo(siginfo->si_pid,gpid,ppid))
                 pidInsert(&info->ptree,tmpInfo);
         }
     }
@@ -183,7 +185,7 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
          * 在这个进程B在退出时会通知进程组A，也会出现查询不到的情况
          * 无需关心该问题，进程组B已经被其它监控线程监控了
          */
-        DMSG(ML_WARN,"Current pid %d is not in ptree\n",*pid);
+        DMSG(ML_WARN,"Current pid %d is not in ptree\n",siginfo->si_pid);
     }
     return AP_SUCC;
 }
@@ -294,7 +296,6 @@ pid_t *getTask(pid_t gpid)
 }
 
 
-
 int filterGPid(const struct dirent *dir);
 void* startMon(void* pinfo)
 {
@@ -323,21 +324,25 @@ void* startMon(void* pinfo)
     free(tmp);
     tmp = NULL;
 
-
     pid_t pid = 0;
     int status = 0,tocontrols = 0,
-        callid = 0,run = 1,block = 0;
+        callid = 0,run = 1,block = 0,waitidret = 0;
+    siginfo_t siginfo;
+    memset(&siginfo,0,sizeof(siginfo_t));
     while(run)
     {
         callid = 0;
         status = 0;
         tocontrols = 1;
         dmsg("rewait >>>>>>>>>>>>>>>>>>>>>>\n");
-        pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
-
+        // waitid(P_ALL, 存在监控其它并非自己ATTACH的进程组的问题，会导致逻辑混乱
+        // waitid(P_PGID, 存在不监控其它进程组的问题，需要另外拉起一个进程去等待新创建的进程组，否则新的进程组会一直阻塞
+        waitidret = waitid(P_PGID,info->tpid,&siginfo,WUNTRACED|WEXITED|WSTOPPED|WCONTINUED);
+//        pid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0); //非阻塞 -> WNOHANG
         // 判断pid
-        if(pid == -1)
+        if(waitidret == -1)
         {
+            DMSG(ML_ERR,"waitidret = -1 errno = %d\n",errno);
             switch (errno) {
             case ECHILD:    // 没有被追踪的进程了
                 run = 0;
@@ -356,17 +361,43 @@ void* startMon(void* pinfo)
         // 主线程通知结束
         if(info->toexit)
         {
-            printf("detach pid = %d\n",pid);
-            if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
-                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+            printf("detach pid = %d\n",siginfo.si_pid);
+            if(ptrace(PTRACE_DETACH, siginfo.si_pid, 0, 0) < 0)
+                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,siginfo.si_pid);
             continue;
         }
 
+//        switch (siginfo.si_signo) {
+//        case SIGCHLD:
+//            if(siginfo.si_code != CLD_TRAPPED)
+//            {
+//                // 不做干预，继续该信号
+//                if(!block && ptrace(PTRACE_CONT, siginfo.si_pid, 0, siginfo.si_signo) < 0) {
+//                    DMSG(ML_WARN,"%s : %s(%d) pid is %d\n", "PTRACE_SYSCALL", strerror(errno),errno,siginfo.si_pid);
+//                }
+//            }
+//            break;
+//        default:
+//            break;
+//        }
+
+        pid = siginfo.si_pid;
+        status = siginfo.si_signo;
+        DMSG(ML_INFO,"si_signo is %lld\t"
+                     "si_code is %lld\t"
+                     "si_status is %lld\t"
+                     "si_value is %lld\n",
+                    siginfo.si_signo,
+                    siginfo.si_code,
+                    siginfo.si_status,
+                    siginfo.si_value);
+        // siginfo.si_status >> 8 = ptrace event
+
         // 开始处理
-        if(pid && status)
+        if(siginfo.si_pid && siginfo.si_status)
         {
             enum APRET ret =
-                analysisPreproccess(&pid,&status,info,&callid);        // 分析与初步处理
+                analysisPreproccess(&siginfo,info,&callid);        // 分析与初步处理
             switch (ret) {
             case AP_SUCC:
                 tocontrols = 1;

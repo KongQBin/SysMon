@@ -25,6 +25,7 @@ static void printUserRegsStruct(struct user_regs_struct *reg)
 
 long cbExecve(CB_ARGVS)
 {
+//    printUserRegsStruct(regs);
     size_t len = 0;
     char *str = NULL;
     if(!getRegsStrArg(info, ARGV_1(regs),&str,&len) && !getRealPath(info, &str, &len))
