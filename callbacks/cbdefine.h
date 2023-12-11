@@ -15,9 +15,45 @@
 #define ID_GETDENTS64           (IS_ARCH_64 ? 217 : 220)
 #define getdents64(fd,buf,size) syscall(ID_GETDENTS64,fd,buf,size)
 
+/*                                   ptrace 宏                                  */
+/*部分处理器架构下的系统没有这些宏，但大多系统这些宏的值是一致的，故此处进行定义*/
+#ifndef PT_SETREGS
+    #define PT_SETREGS 13
+#endif
+#ifndef PT_GETREGS
+    #define PT_GETREGS 12
+#endif
+
+#ifndef PTRACE_EVENT_FORK
+    #define PTRACE_EVENT_FORK       1
+#endif
+#ifndef PTRACE_EVENT_VFORK
+    #define PTRACE_EVENT_VFORK      2
+#endif
+#ifndef PTRACE_EVENT_CLONE
+    #define PTRACE_EVENT_CLONE      3
+#endif
+#ifndef PTRACE_EVENT_EXEC
+    #define PTRACE_EVENT_EXEC       4
+#endif
+#ifndef PTRACE_EVENT_VFORK_DONE
+    #define PTRACE_EVENT_VFORK_DONE 5
+#endif
+#ifndef PTRACE_EVENT_EXIT
+    #define PTRACE_EVENT_EXIT       6
+#endif
+#ifndef PTRACE_EVENT_SECCOMP
+    #define PTRACE_EVENT_SECCOMP    7
+#endif
+#ifndef PTRACE_EVENT_STOP
+    #define PTRACE_EVENT_STOP       128
+#endif
+
 /*                    提供服务                    */
 /*宏名称（处理器位数？64位系统调用号：32位系统调用号）*/
 /*                  文件监控系列                  */
+#define READ_DIFF_ARCH
+
 #define ID_READ         (IS_ARCH_64 ? 0 : 3)
 #define ID_WRITE        (IS_ARCH_64 ? 1 : 4)
 #define ID_OPEN         (IS_ARCH_64 ? 2 : 5)    //从kernel 2.26开始 glibc将open重定向到了openat，且新版本内核中已经不存在该调用了

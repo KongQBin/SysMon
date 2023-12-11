@@ -130,17 +130,18 @@ enum APRET analysisPreproccess(pid_t *pid,int *status,struct ControlInfo *info, 
     if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN))
         dmsg("PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
 
-    struct user_regs_struct reg;
-    memset(&reg,0,sizeof(reg));
+//    struct user_regs_struct reg;
+    struct user user;
+    memset(&user.regs,0,sizeof(user.regs));
     // 获取子进程寄存器的值
-    if(ptrace(PTRACE_GETREGS, *pid, 0, &reg) < 0)
+    if(ptrace(PT_GETREGS, *pid, 0, &user.regs) < 0)
     {
         DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
         return AP_REGS_READ_ERROR;
     }
 
-    // printUserRegsStruct(&reg);
-    long *pregs = (long*)&reg;
+    // printUserRegsStruct(&user.regs);
+    long *pregs = (long*)&user.regs;
     if(CALL(pregs) < 0) return AP_SUCC; // 系统调用号存在等于-1的情况,原因未详细调查
     *callid = nDoS(CALL(pregs));
 
@@ -309,6 +310,7 @@ void* newStartMon(void* pinfo)
         perror("scandir");
         return NULL;
     }
+
     printf("AAA\n");
     pid_t *tmp = NULL;
     pid_t pidss[1024] = {0};

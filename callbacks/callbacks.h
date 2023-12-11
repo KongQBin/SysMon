@@ -6,6 +6,7 @@
 #include "managemon.h"
 #include "general.h"
 #include "readme.h"     // 首次开发回调函数请先阅读该文档
+#include "testfunc.h"
 
 // 拒绝(调用)服务
 extern long DoS();                         //(内联)获取dos标识

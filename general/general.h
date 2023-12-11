@@ -32,7 +32,7 @@ static char color[][32] = {
     //    "\033[0;32;32m",         // 暗绿
 };
 
-#define mdebug 0
+#define mdebug 1
 #if mdebug
 #define dmsg(fmt, ...)\
 {\
@@ -44,7 +44,7 @@ static char color[][32] = {
 #endif
 
 #define SPIK_LEVEN(level) if(/*level == ML_INFO*/0) break;
-#define NCOLOR          "\033[m"    /* 清除颜色 */
+#define NCOLOR              "\033[m"    /* 清除颜色 */
 #define DMSG(level, fmt, ...) {\
 do{\
     SPIK_LEVEN(level);\

@@ -91,8 +91,9 @@ int initRegsOffset()
 ////            return -4;
 //        }
 
-        struct user_regs_struct regs;
-        int regsNum = sizeof(regs)/sizeof(long);
+//        struct user_regs_struct regs;
+        struct user user;
+        int regsNum = sizeof(user.regs)/sizeof(long);
 
         int sonFd = -1;
         if(read(pr,&sonFd,sizeof(sonFd)) != sizeof(sonFd))
@@ -113,10 +114,11 @@ int initRegsOffset()
                 break;
             }
 
-            memset(&regs,0,sizeof(regs));
-            ptrace(PTRACE_GETREGS, pid, 0, &regs);
+            memset(&user.regs,0,sizeof(user.regs));
+            ptrace(PT_GETREGS, pid, 0, &user.regs);
+            printUserRegsStruct2(&user);
 
-            long *pRegs = (long*)&regs;
+            long *pRegs = (long*)&user.regs;
             for(int i=0;i<regsNum;++i)
             {
                 // 命中返回值
@@ -155,7 +157,7 @@ int initRegsOffset()
                         && j != g_regsOffset.argv2 && j != g_regsOffset.argv3)
                     {
                         // write调用号 32位系统等于4 64位系统等于1
-                        if(pRegs[j] == 1 || pRegs[j] == 4)
+                        if(pRegs[j]%1000 == ID_WRITE)
                         {
                             g_regsOffset.call = j;
                             DMSG(ML_INFO,"call id is %d\n",pRegs[j]);

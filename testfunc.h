@@ -11,6 +11,7 @@
 #include "general.h"
 #include "cbdefine.h"
 
-/*做平台适配时使用的函数*/
-void printArgv(pid_t child, struct user_regs_struct *reg);
-void printUserRegsStruct(struct user_regs_struct *reg);
+///*做平台适配时使用的函数*/
+//void printArgv(pid_t child, struct user_regs_struct *reg);
+//void printUserRegsStruct(struct user_regs_struct *reg);
+void printUserRegsStruct2(struct user *user);

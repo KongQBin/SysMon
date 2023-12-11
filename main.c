@@ -134,7 +134,7 @@ int filterGPid(const struct dirent *dir)
 int startSysMon()
 {
     createMonThread(0);
-    return 0;
+//    return 0;
 
 
     const char *directory = "/proc";
@@ -180,7 +180,7 @@ int main(int argc, char** argv)
     signal(SIGINT,sigOptions);  // Ctrl + c
     signal(SIGTERM,sigOptions); // kill -15
     int ret = init();
-
+    return 0;
 
 //    createMonThread(atoi(argv[1]));
 //    sleep(2);
