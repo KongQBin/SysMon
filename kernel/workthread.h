@@ -46,6 +46,7 @@ typedef struct _Interactive
     int status;             // 任务状态（用于放行信号）
     // 任务是获取寄存器的话才会用以下参数
     int fd[2];              // 主线程向子线程返回消息的管道
+    int skip;               // 主线程跳过了这个系统调用
     long *regs;             // 寄存器地址,size应该是struct user中regs的大小
     ARGV_TYPE argvType[6];  // 参数1-6的类型
     long argv[6];           // 参数1-6的值，对于指针类要强转

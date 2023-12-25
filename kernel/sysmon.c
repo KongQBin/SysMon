@@ -248,13 +248,33 @@ void* newStartMon(void* pinfo)
 //            DMSG(ML_WARN,"TraceTaskContext curTask->type: %d\n", curTask->type);
             switch (curTask->type) {
             case TTT_GETREGS:
+            {
                 if(ptrace(PTRACE_GETREGS, curTask->pid, 0, curTask->regs) < 0)
                 {
                     DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),curTask->pid);
                     //                return AP_REGS_READ_ERROR;
                 }
+                int skip = 0,callid = 0;
+                callid = nDoS(CALL(curTask->regs));
+                if(CALL(curTask->regs) < 0 || (IS_BEGIN(curTask->regs) ? !info->cbf[callid] : !info->cef[callid]))
+                {
+                    skip = 1;
+                    if(ptrace(PTRACE_SETOPTIONS, curTask->pid, NULL, EVENT_CONCERN) < 0)
+                        DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),curTask->pid);
+                    if(ptrace(PTRACE_SYSCALL, curTask->pid, 0, 0) < 0)
+                        DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,curTask->pid);
+                }
+                callid = nDoS(CALL(curTask->regs));
+                if(callid == ID_EXIT_GROUP)
+                {
+                    skip = 1;
+                    if(ptrace(PTRACE_DETACH, curTask->pid, 0, 0) < 0)
+                        DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,curTask->pid);
+                }
+                if(skip) curTask->skip = 1;
                 write(curTask->fd[1],curTask,sizeof(Interactive));
-//                DMSG(ML_WARN,"pthread_cond_signal(curTask->cond);\n");
+                //                DMSG(ML_WARN,"pthread_cond_signal(curTask->cond);\n");
+            }
                 break;
             case TTT_SYSCALL:
 //                DMSG(ML_WARN,"1curTask->pid is %d\n",curTask->pid);

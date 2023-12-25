@@ -102,6 +102,7 @@ enum APRET
     AP_IS_EVENT = 4,                 //事件处理结束
     AP_IS_SIGNAL = 5,                //信号处理结束
     AP_TO_BLOCK = 6,                 //阻塞该系统调用
+    AP_TO_SKIP,
 };
 // 分析预处理
 enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
@@ -120,22 +121,27 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
     task->type = TTT_GETREGS;
     write(td->fd[1],task,sizeof(Interactive));
     read(task->fd[0],task,sizeof(Interactive));
+    if(task->skip)
+    {
+        task->skip = 0;
+        return AP_TO_SKIP;
+    }
 
 
     // printUserRegsStruct(&user.regs);
     long *pregs = task->regs;
-    if(CALL(pregs) < 0) return AP_SUCC; // 系统调用号存在等于-1的情况,原因未详细调查
+//    if(CALL(pregs) < 0) return AP_SUCC; // 系统调用号存在等于-1的情况,原因未详细调查
     *callid = nDoS(CALL(pregs));
 
-    // 目标进程退出
-    if(*callid == ID_EXIT_GROUP)
-    {
-        dmsg("Call is ID_EXIT_GROUP\n");
-        return AP_TARGET_PROCESS_EXIT;
-    }
-    // 指针数组作为bloom使用，判断是否关注该系统调用
-    if(*callid >= 512 || IS_BEGIN(pregs) ? !info->cbf[*callid] : !info->cef[*callid])
-        return AP_CALL_NOT_FOUND;
+//    // 目标进程退出
+//    if(*callid == ID_EXIT_GROUP)
+//    {
+//        dmsg("Call is ID_EXIT_GROUP\n");
+//        return AP_TARGET_PROCESS_EXIT;
+//    }
+//    // 指针数组作为bloom使用，判断是否关注该系统调用
+//    if(IS_BEGIN(pregs) ? !info->cbf[*callid] : !info->cef[*callid])
+//        return AP_CALL_NOT_FOUND;
     DMSG(ML_INFO,"From pid %d\tHit Call %d\n",*pid,*callid);
     struct pidinfo *tmpInfo = pidSearch(&info->ptree,*pid);
     if(!tmpInfo)
@@ -243,6 +249,8 @@ void *workThread(void* pinfo)
         case AP_TO_BLOCK:
             //            block = 1;
             break;
+        case AP_TO_SKIP:
+            continue;
         case AP_TARGET_PROCESS_EXIT:
             /* 进程退出
                  *
