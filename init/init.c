@@ -5,13 +5,13 @@ extern int initRegsOffset();       // 初始化寄存器偏移
 int init()
 {
     int ret = initRegsOffset();
-    DMSG(ML_INFO,"current process id = %d\n",getpid());
-    DMSG(ML_INFO,"initRegsOffset ret = %d\n",ret);
-    DMSG(ML_INFO,"offset.call = %d\n",g_regsOffset.call);
-    DMSG(ML_INFO,"offset.ret = %d\n",g_regsOffset.ret);
-    DMSG(ML_INFO,"offset.argv1 = %d\n",g_regsOffset.argv1);
-    DMSG(ML_INFO,"offset.argv2 = %d\n",g_regsOffset.argv2);
-    DMSG(ML_INFO,"offset.argv3 = %d\n",g_regsOffset.argv3);
+    printf("current process id = %d\n",getpid());
+    printf("initRegsOffset ret = %d\n",ret);
+    printf("offset.call = %d\n",g_regsOffset.call);
+    printf("offset.ret = %d\n",g_regsOffset.ret);
+    printf("offset.argv1 = %d\n",g_regsOffset.argv1);
+    printf("offset.argv2 = %d\n",g_regsOffset.argv2);
+    printf("offset.argv3 = %d\n",g_regsOffset.argv3);
     return ret;
 }
 
@@ -157,7 +157,7 @@ int initRegsOffset()
                         && j != g_regsOffset.argv2 && j != g_regsOffset.argv3)
                     {
                         // write调用号 32位系统等于4 64位系统等于1
-                        if(pRegs[j]%1000 == ID_WRITE)
+                        if(pRegs[j]/*%1000*/ == ID_WRITE)
                         {
                             g_regsOffset.call = j;
                             DMSG(ML_INFO,"call id is %d\n",pRegs[j]);

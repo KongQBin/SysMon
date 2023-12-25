@@ -133,9 +133,8 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
         dmsg("Call is ID_EXIT_GROUP\n");
         return AP_TARGET_PROCESS_EXIT;
     }
-
     // 指针数组作为bloom使用，判断是否关注该系统调用
-    if(IS_BEGIN(pregs) ? !info->cbf[*callid] : !info->cef[*callid])
+    if(*callid >= 512 || IS_BEGIN(pregs) ? !info->cbf[*callid] : !info->cef[*callid])
         return AP_CALL_NOT_FOUND;
     DMSG(ML_INFO,"From pid %d\tHit Call %d\n",*pid,*callid);
     struct pidinfo *tmpInfo = pidSearch(&info->ptree,*pid);

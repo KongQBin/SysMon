@@ -143,7 +143,7 @@ void* newStartMon(void* pinfo)
     FILE *fp = fopen("/tmp/gpids","w+");
     for (int i = 0; i < num_entries; ++i)
     {
-        printf("%s\n", namelist[i]->d_name);
+//        printf("%s\n", namelist[i]->d_name);
         pid_t gpid;
         char *strend;
         gpid = strtoll(namelist[i]->d_name,&strend,10);
