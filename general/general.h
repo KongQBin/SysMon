@@ -35,7 +35,7 @@ static char color[][32] = {
     "\033[1;35m",            // 紫色
 };
 
-#define mdebug 1
+#define mdebug 0
 #if mdebug
 #define dmsg(fmt, ...)\
 {\
@@ -46,13 +46,16 @@ static char color[][32] = {
 #define dmsg(fmt, ...)
 #endif
 
-#define SPIK_LEVEN(level) if(/*level == ML_INFO*/0) break;
+#define SPIK_LEVEN(level) if(/*level == ML_INFO*/1) break;
 #define NCOLOR              "\033[m"    /* 清除颜色 */
 #define DMSG(level, fmt, ...) {\
 do{\
     SPIK_LEVEN(level);\
     printf(color[level]);\
-    printf("%llu ",gettid());\
+    struct timespec timestamp;\
+    clock_gettime(CLOCK_REALTIME, &timestamp);\
+    printf("T:%d ",timestamp.tv_nsec);\
+    printf("P:%llu ",gettid());\
     printf("[%s:%d]:\t",__FILE__,__LINE__);\
     printf(fmt,##__VA_ARGS__);\
     printf(NCOLOR);\

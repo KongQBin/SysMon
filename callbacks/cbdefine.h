@@ -1,5 +1,6 @@
 #pragma once
 #include <unistd.h>
+#include <pthread.h>
 // 一个字的长度(__WORDSIZE = 64 or 32 bit)
 #define WORDLEN         sizeof(long)
 // 调用后的情况,此时该系统调用已经执行结束
@@ -13,8 +14,8 @@
 /*            此处主要为了解决编译警告            */
 #define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
 #define gettid()        syscall(ID_GETTID)
-#define ID_GETDENTS64           (IS_ARCH_64 ? 217 : 220)
-#define getdents64(fd,buf,size) syscall(ID_GETDENTS64,fd,buf,size)
+//#define ID_GETDENTS64   (IS_ARCH_64 ? 217 : 220)
+//#define getdents64(fd,buf,size) syscall(ID_GETDENTS64,fd,buf,size)
 
 /*                                   ptrace 宏                                  */
 /*部分处理器架构下的系统没有这些宏，但大多系统这些宏的值是一致的，故此处进行定义*/
@@ -68,8 +69,3 @@
 #define ID_EXECVEAT     (IS_ARCH_64 ? 322 : 358)
 #define ID_KILL         (IS_ARCH_64 ? 62 : 37)
 #define ID_EXIT_GROUP   (IS_ARCH_64 ? 231 : 252)
-
-/*                  回调函数形参                  */
-#define CB_ARGVS_TYPE(av1,av2,av3)    struct pidinfo *av1,long *av2,int av3
-#define CB_ARGVS                      CB_ARGVS_TYPE(info,regs,block)
-

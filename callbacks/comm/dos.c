@@ -8,18 +8,27 @@
 inline long DoS() { return DOS; }
 inline long nDoS(long call) { return ~DOS&call; }
 
-inline long cbDoS(pid_t *pid, long *regs, int block)
+inline long cbDoS(CB_ARGVS)
 {
+    Interactive *task = argv->task;
+    pid_t *pid = &argv->info->pid;
+    long *regs = argv->task->regs;
+    int block = argv->block;
     // 修改系统调用号为不存在的调用，起到拒绝服务的目的
     CALL(regs) = CALL(regs) | DOS;
-    //    printf("DOS_CLONE = %lld\n",CALL(regs));
-    int ret = ptrace(PT_SETREGS, pid, NULL, regs);
-    if(ret < 0) perror("cbDoS error");
+    // 触发
+    task->type = TTT_SETREGS;
+    write(argv->td->fd[1],task,sizeof(Interactive));
+//    read(argv->td->fd[0],task,sizeof(Interactive));
     return 0;
 }
 
-inline long ceDoS(pid_t *pid, long *regs, int block)
+inline long ceDoS(CB_ARGVS)
 {
+    Interactive *task = argv->task;
+    pid_t *pid = &argv->info->pid;
+    long *regs = argv->task->regs;
+    int block = argv->block;
     // -38 = Function not implemented = 未实现的函数
     // -1  = Operation not permitted  = 不被允许的操作
     // perror或strerror打印错误消息依据errno
@@ -29,7 +38,9 @@ inline long ceDoS(pid_t *pid, long *regs, int block)
 
     //    printf("rax = %lld\n",RET(regs));
     RET(regs) = -1;
-    int ret = ptrace(PT_SETREGS, pid, NULL, regs);
-    if(ret < 0)  perror("ceDoS error");
+    // 触发
+    task->type = TTT_SETREGS;
+    write(argv->td->fd[1],task,sizeof(Interactive));
+//    read(argv->td->fd[0],task,sizeof(Interactive));
     return 0;
 }

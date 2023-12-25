@@ -3,7 +3,7 @@
 #include <sys/sysctl.h>
 #include <dirent.h>
 
-struct ControlInfo **ginfo = NULL;
+ControlInfo **ginfo = NULL;
 unsigned long ginfolen = 0;
 int gmaintoexit = 0;
 
@@ -11,7 +11,7 @@ pid_t apids[256] = {0};
 int apidslen = 0;
 int createMonThread(pid_t pid)
 {
-    struct ControlInfo *info = calloc(1,sizeof(struct ControlInfo));
+    ControlInfo *info = calloc(1,sizeof(ControlInfo));
     if(!info)
     {
         DMSG(ML_ERR, "Create ControlInfo err : %s\n",strerror(errno));
@@ -32,7 +32,7 @@ int createMonThread(pid_t pid)
     // 设置阻塞模式
 //    SETBLOCK(info,ID_EXECVE);
 
-    struct ControlInfo **tmp = realloc(ginfo,(ginfolen+1)*sizeof(struct ControlInfo *));
+    ControlInfo **tmp = realloc(ginfo,(ginfolen+1)*sizeof(ControlInfo *));
     if(!tmp) { if(info) free(info); return -1;}
     ginfo = tmp;
     ginfo[ginfolen] = info;
@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 //                free(ginfo[i]);
 //                if(i == ginfolen-1)
 //                {
-//                    struct ControlInfo *tmp = realloc();
+//                    tdControlInfo *tmp = realloc();
 //                }
 //                memcpy(ginfo[i],ginfo[i])
 

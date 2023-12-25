@@ -16,29 +16,60 @@
             return AP_TARGET_PROCESS_EXIT;\
     }\
 */
-#define MANAGE_SIGNAL(pid,status){\
+//#define MANAGE_SIGNAL(pid,status,info){\
 int signal = (status & 0xFF) ^ (1 << 7);\
-dmsg(">>    signal is %d    <<\n",signal);\
+dmsg(">>    signal is %d    <<\n",status >> 8);\
 switch (signal) {\
 case SIGTERM:  /* kill -15 */\
 case SIGINT:   /* 2 Ctrl + c */\
-if (ptrace(PTRACE_CONT, pid, NULL, status) < 0)\
-        DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
-    return AP_IS_SIGNAL;\
-    break;\
 case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
-    if (ptrace(PTRACE_CONT, pid, NULL, status) < 0){\
-        DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
-        return AP_IS_SIGNAL;\
-    }\
-    break;\
+    return AP_IS_SIGNAL;\
 case SIGTRAP:  /* kill -5 */\
     break;\
 }\
 }
 
-#define MANAGE_EVENT(pid,status) {\
-int event = (status >> 8);\
+#define MANAGE_SIGNAL(pid,status,info){\
+if(WIFSIGNALED(status))/*kill -9)*/\
+{\
+        DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
+        return AP_TARGET_PROCESS_EXIT;\
+}\
+int tmp = WSTOPSIG(status);\
+int signal = (tmp & 0x7F);\
+dmsg(">>    signal is %d    <<\n",signal);\
+switch (signal) {\
+case SIGTERM:  /* kill -15 */\
+case SIGINT:   /* 2 Ctrl + c */\
+    return AP_IS_SIGNAL;\
+case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
+case SIGTRAP:  /* kill -5 */\
+    break;\
+}\
+}
+
+
+// int signal = (status & 0xFF) ^ (1 << 7);\
+    dmsg(">>    signal is %d    <<\n",signal);\
+    switch (signal) {\
+    case SIGTERM:  /* kill -15 */\
+    case SIGINT:   /* 2 Ctrl + c */\
+        if (ptrace(PTRACE_CONT, pid, NULL, status) < 0)\
+        DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
+        return AP_IS_SIGNAL;\
+        break;\
+    case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
+    if (ptrace(PTRACE_CONT, pid, NULL, status) < 0){\
+            DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %llu\n", strerror(errno),errno,pid);\
+            return AP_IS_SIGNAL;\
+    }\
+        break;\
+    case SIGTRAP:  /* kill -5 */\
+        break;\
+}\
+
+#define MANAGE_EVENT(pid,status,info) {\
+int event = (status >> 16);\
 dmsg(">>>   get event is %d   <<<\n",event);\
 switch (event){\
 case PTRACE_EVENT_FORK:/*创建进程组*/\
@@ -88,13 +119,15 @@ default:\
     break;\
 }\
 }\
-if(event)\
-{\
-    if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)\
-    {\
-        DMSG(ML_INFO_EVENT,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
-        if(errno == 3) return errno;   /*No such process*/\
-    }\
-    return AP_IS_EVENT;\
-}\
+if(event) return AP_IS_EVENT;\
 }
+//  if(event)\
+    {\
+            if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)\
+        {\
+                DMSG(ML_INFO_EVENT,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
+                if(errno == 3) return errno;   /*No such process*/\
+        }\
+            return AP_IS_EVENT;\
+    }\
+

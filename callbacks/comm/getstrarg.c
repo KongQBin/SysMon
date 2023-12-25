@@ -1,6 +1,16 @@
 #include "callbacks.h"
+#include "workthread.h"
 
-int getRegsStrArg(struct pidinfo *info, long arg, char **str, size_t *len)
+int getStrArg(CbArgvs *argv)
+{
+    Interactive *task = argv->task;
+    task->type = TTT_PEEKDATA;
+    write(argv->td->fd[1],task,sizeof(Interactive));
+    read(argv->task->fd[0],task,sizeof(Interactive));
+    return 0;
+}
+
+int getRegsStrArg(pid_t pid, long arg, char **str, size_t *len)
 {
     *str = NULL;
     int ret = 0, run = 1, j = 0;
@@ -21,7 +31,7 @@ int getRegsStrArg(struct pidinfo *info, long arg, char **str, size_t *len)
         for(;!ret && j<size/WORDLEN;++j)
         {
             long tmp = 0;
-            tmp = ptrace(PTRACE_PEEKDATA, info->pid, arg + (j*WORDLEN), NULL);
+            tmp = ptrace(PTRACE_PEEKDATA, pid, arg + (j*WORDLEN), NULL);
             memcpy(&(*str)[j*WORDLEN], &tmp, WORDLEN);
             strend = memchr(&(*str)[j*WORDLEN],'\0',WORDLEN);
             if(!strend)                               continue; // 未找到结束符号
