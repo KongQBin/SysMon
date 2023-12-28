@@ -149,7 +149,7 @@ void* newStartMon(void* pinfo)
         gpid = strtoll(namelist[i]->d_name,&strend,10);
         if(gpid && strend != namelist[i]->d_name)
         {
-            if(gpid != 3091) continue;
+            if(gpid != 42267) continue;
 //            // 获取进程组中的所有进程
             tmp = getTask(gpid);
             if(!tmp) return NULL;
@@ -187,27 +187,38 @@ void* newStartMon(void* pinfo)
         if(errno != 1) pidInsert(&info->ptree,createPidInfo(pidss[i],0,0));
     }
 
-    // 创建 epoll 实例
-    int epoll_fd = epoll_create(1);
-    if (epoll_fd == -1) {
-        DMSG(ML_ERR,"epoll_create\n");
-    }
+    long taskNum = 0;
+    pthread_cond_t cond;
+    pthread_mutex_t mutex;
+    pthread_cond_init(&cond,NULL);
+    pthread_mutex_init(&mutex,NULL);
+
+//    // 创建 epoll 实例
+//    int epoll_fd = epoll_create(1);
+//    if (epoll_fd == -1) {
+//        DMSG(ML_ERR,"epoll_create\n");
+//    }
     ThreadData *mtts[MAX_THREAD_NUM];
-    struct epoll_event event[MAX_THREAD_NUM];
-    memset(event,0,sizeof(event[MAX_THREAD_NUM]));
+//    struct epoll_event event[MAX_THREAD_NUM];
+//    memset(event,0,sizeof(event[MAX_THREAD_NUM]));
     for(int i=0;i<MAX_THREAD_NUM;++i)
     {
         ThreadData *mtt = calloc(1,sizeof(ThreadData));
         mtts[i] = mtt;
         // 初始化成员属性
-        pipe(mtt->fd);
+//        pipe(mtt->fd);
+        mtt->cond = &cond;
+        mtt->mtx = &mutex;
+        mtt->taskNum = &taskNum;
         mtt->cInfo = info;
+        pthread_cond_init(&mtt->mcond,NULL);
+        pthread_mutex_init(&mtt->mmtx,NULL);
 
-        event[i].events = EPOLLIN;
-        event[i].data.fd = mtt->fd[0];
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event[i].data.fd, &(event[i])) == -1) {
-            DMSG(ML_ERR,"epoll_ctl\n");
-        }
+//        event[i].events = EPOLLIN;
+//        event[i].data.fd = mtt->fd[0];
+//        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, event[i].data.fd, &(event[i])) == -1) {
+//            DMSG(ML_ERR,"epoll_ctl\n");
+//        }
         //
 
         //    waitTask(pinfo);
@@ -220,31 +231,56 @@ void* newStartMon(void* pinfo)
     }
 #define MAX_EVENTS 10
 
-    Interactive msg;
+    Interactive *msg;
     // 准备用于接收事件的数组
-    struct epoll_event events[MAX_EVENTS];
+//    struct epoll_event events[MAX_EVENTS];
     // 循环：不断的处理工作线程请求的任务
     while(1)
     {
         // 等待事件发生
-//        DMSG(ML_WARN,"wait <<<\n");
-        int num_events = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-//        DMSG(ML_WARN,"wait >>>\n");
-        if (num_events == -1) {
-            DMSG(ML_ERR,"epoll_wait\n");
+        msg = NULL;
+        pthread_mutex_lock(&mutex);
+        if(!taskNum) pthread_cond_wait(&cond,&mutex);
+        --taskNum;
+        pthread_mutex_unlock(&mutex);
+        int condSig = 0;
+        ThreadData *td = NULL;
+        for(int i=0;i<MAX_THREAD_NUM;++i)
+        {
+            if(!mtts[i])    continue;
+            pthread_mutex_lock(&mtts[i]->mmtx);
+            for(int j=0;j<sizeof(mtts[i]->threadTask)/sizeof(mtts[i]->threadTask[0]);++j)
+            {
+                if(mtts[i]->threadTask[j]
+                    && ((Interactive*)mtts[i]->threadTask[j])->progess == PG_1)
+                {
+                    td = mtts[i];
+                    msg = (Interactive*)mtts[i]->threadTask[j];
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&mtts[i]->mmtx);
+            if(msg) break;
         }
 
-        for (int i = 0; i < num_events; i++) {
-            memset(&msg,0,sizeof(Interactive));
-            DMSG(ML_INFO,"events[i] is %d\n",events[i]);
-            ssize_t bytes_read = read(events[i].data.fd, &msg, sizeof(Interactive));
-            if(bytes_read == -1)
-            {
-                DMSG(ML_ERR,"read(events[i].data.fd, &msg, sizeof(Interactive))\n");
-                continue;
-            }
+////        DMSG(ML_WARN,"wait <<<\n");
+//        int num_events = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+////        DMSG(ML_WARN,"wait >>>\n");
+//        if (num_events == -1) {
+//            DMSG(ML_ERR,"epoll_wait\n");
+//        }
 
-            Interactive *curTask = &msg;
+//        for (int i = 0; i < num_events; i++) {
+//            memset(&msg,0,sizeof(Interactive));
+//            DMSG(ML_INFO,"events[i] is %d\n",events[i]);
+//            ssize_t bytes_read = read(events[i].data.fd, &msg, sizeof(Interactive));
+//            if(bytes_read == -1)
+//            {
+//                DMSG(ML_ERR,"read(events[i].data.fd, &msg, sizeof(Interactive))\n");
+//                continue;
+//            }
+
+            Interactive *curTask = msg;
 //            DMSG(ML_WARN,"TraceTaskContext curTask->type: %d\n", curTask->type);
             switch (curTask->type) {
             case TTT_GETREGS:
@@ -255,6 +291,7 @@ void* newStartMon(void* pinfo)
                     //                return AP_REGS_READ_ERROR;
                 }
                 int skip = 0,callid = 0;
+//                printf("curTask->regs = %x\n",curTask->regs);
                 callid = nDoS(CALL(curTask->regs));
                 if(CALL(curTask->regs) < 0 || (IS_BEGIN(curTask->regs) ? !info->cbf[callid] : !info->cef[callid]))
                 {
@@ -272,7 +309,8 @@ void* newStartMon(void* pinfo)
                         DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,curTask->pid);
                 }
                 if(skip) curTask->skip = 1;
-                write(curTask->fd[1],curTask,sizeof(Interactive));
+                condSig = 1;
+//                write(curTask->fd[1],curTask,sizeof(Interactive));
                 //                DMSG(ML_WARN,"pthread_cond_signal(curTask->cond);\n");
             }
                 break;
@@ -308,7 +346,8 @@ void* newStartMon(void* pinfo)
                             curTask->argv[i] = (long)str;
                     }
                 }
-                write(curTask->fd[1],curTask,sizeof(Interactive));
+//                write(curTask->fd[1],curTask,sizeof(Interactive));
+                condSig = 1;
             }
             break;
             case TTT_SETREGS:
@@ -324,7 +363,14 @@ void* newStartMon(void* pinfo)
                 DMSG(ML_ERR,"ERROR Task Type : %d\n",curTask->type);
                 break;
             }
-        }
+            curTask->progess = PG_3;
+            if(condSig)
+            {   // 触发子线程信号量，使其继续
+                pthread_mutex_lock(&td->mmtx);
+                pthread_cond_signal(&td->mcond);
+                pthread_mutex_unlock(&td->mmtx);
+            }
+//        }
         if(info->toexit)    break;
     }
 

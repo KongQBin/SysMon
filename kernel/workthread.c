@@ -119,8 +119,18 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
 
     //    struct user_regs_struct reg;
     task->type = TTT_GETREGS;
-    write(td->fd[1],task,sizeof(Interactive));
-    read(task->fd[0],task,sizeof(Interactive));
+    pthread_mutex_lock(td->mtx);
+    ++ *td->taskNum;
+    task->progess = PG_1;
+    pthread_cond_signal(td->cond);
+    pthread_mutex_unlock(td->mtx);
+
+    pthread_mutex_lock(&td->mmtx);
+    if(task->progess != PG_3) pthread_cond_wait(&td->mcond,&td->mmtx);
+    pthread_mutex_unlock(&td->mmtx);
+
+//    write(td->fd[1],task,sizeof(Interactive));
+//    read(task->fd[0],task,sizeof(Interactive));
     if(task->skip)
     {
         task->skip = 0;
@@ -191,10 +201,18 @@ void *workThread(void* pinfo)
 
     struct user user;
     memset(&user,0,sizeof(struct user));
-    Interactive task;
-    memset(&task,0,sizeof(Interactive));
-    task.regs = (long*)&user.regs;
-    pipe(task.fd);
+    Interactive *task = NULL;
+    Interactive *tasks = calloc(1,sizeof(Interactive)*10);
+    for(int i = 0;i<10;++i)
+    {
+        tasks[i].regs = (long*)&user.regs;
+        td->threadTask[i] = (void*)&tasks[i];
+        printf("tasks[i].regs = %x\n",tasks[i].regs);
+    }
+//    Interactive task;
+//    memset(&task,0,sizeof(Interactive));
+//    task.regs = (long*)&user.regs;
+//    pipe(task.fd);
 
     while(run)
     {
@@ -218,17 +236,30 @@ void *workThread(void* pinfo)
                 continue;
             }
         }
-        task.pid = pid;
-        task.status = status;
+        for(int i=0;i<10;++i)
+        {
+            if(tasks[i].progess == PG_3 || tasks[i].progess == PG_0)
+            {
+                task = &tasks[i];
+                break;
+            }
+        }
+        task->pid = pid;
+        task->status = status;
 
         // 判断主线程是否要退出
         if(info->toexit)
         {
-            task.type = TTT_DETACH;
-            write(td->fd[1],&task,sizeof(Interactive));
+            task->type = TTT_DETACH;
+            pthread_mutex_lock(td->mtx);
+            ++ *td->taskNum;
+            task->progess = PG_1;
+            pthread_cond_signal(td->cond);
+            pthread_mutex_unlock(td->mtx);
+//            write(td->fd[1],&task,sizeof(Interactive));
         }
 
-        enum APRET ret = analysisPreproccess(td,&task,&callid);    // 分析与初步处理
+        enum APRET ret = analysisPreproccess(td,task,&callid);    // 分析与初步处理
 //        DMSG(ML_ERR,"analysisPreproccess ret is %d\n",ret);
         switch (ret)
         {
@@ -236,12 +267,22 @@ void *workThread(void* pinfo)
             //            tocontrols = 1;
             break;
         case AP_IS_EVENT:     //事件直接放行
-            task.type = TTT_SYSCALL;
-            write(td->fd[1],&task,sizeof(Interactive));
+            task->type = TTT_SYSCALL;
+            pthread_mutex_lock(td->mtx);
+            ++ *td->taskNum;
+            task->progess = PG_1;
+            pthread_cond_signal(td->cond);
+            pthread_mutex_unlock(td->mtx);
+//            write(td->fd[1],&task,sizeof(Interactive));
             continue;
         case AP_IS_SIGNAL:    //部分信号直接放行
-            task.type = TTT_CONT;
-            write(td->fd[1],&task,sizeof(Interactive));
+            task->type = TTT_CONT;
+            pthread_mutex_lock(td->mtx);
+            ++ *td->taskNum;
+            task->progess = PG_1;
+            pthread_cond_signal(td->cond);
+            pthread_mutex_unlock(td->mtx);
+//            write(td->fd[1],&task,sizeof(Interactive));
             continue;
         case AP_CALL_NOT_FOUND:
 //            dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
@@ -260,16 +301,26 @@ void *workThread(void* pinfo)
             //            tocontrols = 0;
             DMSG(ML_INFO,"pid : %d to exit!\n",pid);
             // 取消对该进程的追踪，进入下一个循环
-            task.type = TTT_DETACH;
-            write(td->fd[1],&task,sizeof(Interactive));
+            task->type = TTT_DETACH;
+            pthread_mutex_lock(td->mtx);
+            ++ *td->taskNum;
+            task->progess = PG_1;
+            pthread_cond_signal(td->cond);
+            pthread_mutex_unlock(td->mtx);
+//            write(td->fd[1],&task,sizeof(Interactive));
             pidDelete(&info->ptree,pid);
             continue;
         default:
             DMSG(ML_WARN,"Unknown ANALYSISRET = %d\n",ret);
             break;
         }
-        task.type = TTT_SYSCALL;
-        write(td->fd[1],&task,sizeof(Interactive));
+        task->type = TTT_SYSCALL;
+        pthread_mutex_lock(td->mtx);
+        ++ *td->taskNum;
+        task->progess = PG_1;
+        pthread_cond_signal(td->cond);
+        pthread_mutex_unlock(td->mtx);
+//        write(td->fd[1],&task,sizeof(Interactive));
     }
     return NULL;
 }

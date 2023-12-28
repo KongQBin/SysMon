@@ -11,6 +11,14 @@
 typedef struct _ThreadData
 {
     int fd[2];               // 用来向主线程通信的管道
+    long *taskNum;          // 全局任务计数器
+    void *threadTask[10];   // 当前线程任务池
+    // 用于触发主线程条件变量
+    pthread_mutex_t *mtx;
+    pthread_cond_t *cond;
+    // 用于被主线程唤醒的条件变量
+    pthread_mutex_t mmtx;
+    pthread_cond_t mcond;
     ControlInfo *cInfo;      // 共享数据
 } ThreadData;
 
@@ -35,6 +43,13 @@ typedef enum _ARGV_TYPE
     AT_STR,
 } ARGV_TYPE;
 
+typedef enum _PROGESS
+{
+    PG_0 = 0,
+    PG_1,
+    PG_2,
+    PG_3,
+} PROGESS;
 // 交互数据
 // 由子线程发起 到 主线程
 // 若是需要返回的任务
@@ -44,6 +59,7 @@ typedef struct _Interactive
     pid_t pid;              // 任务pid
     TRACE_TASK_TYPE type;   // 任务类型
     int status;             // 任务状态（用于放行信号）
+    PROGESS progess;        // 当前任务被处理的进度
     // 任务是获取寄存器的话才会用以下参数
     int fd[2];              // 主线程向子线程返回消息的管道
     int skip;               // 主线程跳过了这个系统调用

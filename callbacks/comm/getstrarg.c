@@ -5,8 +5,18 @@ int getStrArg(CbArgvs *argv)
 {
     Interactive *task = argv->task;
     task->type = TTT_PEEKDATA;
-    write(argv->td->fd[1],task,sizeof(Interactive));
-    read(argv->task->fd[0],task,sizeof(Interactive));
+    pthread_mutex_lock(argv->td->mtx);
+    ++ *argv->td->taskNum;
+    task->progess = PG_1;
+    pthread_cond_signal(argv->td->cond);
+    pthread_mutex_unlock(argv->td->mtx);
+
+    pthread_mutex_lock(&argv->td->mmtx);
+    if(task->progess != PG_3) pthread_cond_wait(&argv->td->mcond,&argv->td->mmtx);
+    pthread_mutex_unlock(&argv->td->mmtx);
+
+//    write(argv->td->fd[1],task,sizeof(Interactive));
+//    read(argv->task->fd[0],task,sizeof(Interactive));
     return 0;
 }
 
