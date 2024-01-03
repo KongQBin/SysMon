@@ -54,6 +54,4 @@
  * pthread_kill信号必须发往子线程，让子线程的信号处理函数去处理，因为ptrace不支持多线程调试
  * 使用信号的核心作用主要就是通知子线程有新的任务，同时在子线程wait阻塞时，它能够打断wait
  */
-
-void* startMon(void* ppid);
-void* newStartMon(void* pinfo);
+int startSysmon(ControlInfo *info);

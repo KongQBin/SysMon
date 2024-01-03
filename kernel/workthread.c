@@ -1,5 +1,11 @@
 #include "workthread.h"
 
+
+#define EVENT_CONCERN \
+(PTRACE_O_TRACESYSGOOD|PTRACE_O_TRACEEXEC|\
+ PTRACE_O_TRACEEXIT|PTRACE_O_TRACECLONE|\
+ PTRACE_O_TRACEFORK|PTRACE_O_TRACEVFORK)
+
 void getProcId(int eveType,pid_t pid,int status,ControlInfo *info)
 {
     return;
@@ -116,11 +122,12 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
     MANAGE_SIGNAL(*pid,*status,info);
     MANAGE_EVENT(*pid,*status,info);
 
-    //    struct user_regs_struct reg;
-    task->type = TTT_GETREGS;
-    write(td->fd[1],task,sizeof(Interactive));
-    read(task->fd[0],task,sizeof(Interactive));
-
+//    struct user_regs_struct reg;
+    if(ptrace(PTRACE_GETREGS, *pid, 0, task->regs) < 0)
+    {
+        DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d)\n", strerror(errno),*pid);
+//        return AP_REGS_READ_ERROR;
+    }
 
     // printUserRegsStruct(&user.regs);
     long *pregs = task->regs;
@@ -189,7 +196,6 @@ void *workThread(void* pinfo)
     Interactive task;
     memset(&task,0,sizeof(Interactive));
     task.regs = (long*)&user.regs;
-    pipe(task.fd);
 
     while(run)
     {
@@ -218,9 +224,11 @@ void *workThread(void* pinfo)
 
         // 判断主线程是否要退出
         if(info->toexit)
-        {
-            task.type = TTT_DETACH;
-            write(td->fd[1],&task,sizeof(Interactive));
+        {            // 取消对该进程的追踪，进入下一个循环
+            if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
+                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+            pidDelete(&info->ptree,pid);
+            continue;
         }
 
         enum APRET ret = analysisPreproccess(td,&task,&callid);    // 分析与初步处理
@@ -228,41 +236,36 @@ void *workThread(void* pinfo)
         switch (ret)
         {
         case AP_SUCC:
-            //            tocontrols = 1;
-            break;
-        case AP_IS_EVENT:     //事件直接放行
-            task.type = TTT_SYSCALL;
-            write(td->fd[1],&task,sizeof(Interactive));
-            continue;
-        case AP_IS_SIGNAL:    //部分信号直接放行
-            task.type = TTT_CONT;
-            write(td->fd[1],&task,sizeof(Interactive));
-            continue;
-        case AP_CALL_NOT_FOUND:
-//            dmsg("Syscall:%d doesn't exist in callback bloom!\n",callid);
-            break;
         case AP_TO_BLOCK:
-            //            block = 1;
+        case AP_IS_EVENT:     //事件直接放行
+        case AP_CALL_NOT_FOUND:
+            // 设置下次监控的类型
+            if(ptrace(PTRACE_SETOPTIONS, pid, NULL, EVENT_CONCERN) < 0)
+                DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),pid);
+            // 放行该任务(也可能是一个事件)
+            if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)
+                DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);
+            break;
+        case AP_IS_SIGNAL:    //部分信号直接放行
+            // 继续该任务（信号）
+            if(ptrace(PTRACE_CONT, pid, 0, status) < 0)
+                DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %d\n",strerror(errno),errno,pid);
             break;
         case AP_TARGET_PROCESS_EXIT:
             /* 进程退出
-                 *
-                 * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
-                 * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
-                 */
-            //            tocontrols = 0;
+             * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
+             * 另一种是由于信号导致 ctrl + c || kill -9 || kill -15
+             */
             DMSG(ML_INFO,"pid : %d to exit!\n",pid);
             // 取消对该进程的追踪，进入下一个循环
-            task.type = TTT_DETACH;
-            write(td->fd[1],&task,sizeof(Interactive));
+            if(ptrace(PTRACE_DETACH, pid, 0, 0) < 0)
+                DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
             pidDelete(&info->ptree,pid);
-            continue;
+            break;
         default:
             DMSG(ML_WARN,"Unknown ANALYSISRET = %d\n",ret);
             break;
         }
-        task.type = TTT_SYSCALL;
-        write(td->fd[1],&task,sizeof(Interactive));
     }
     return NULL;
 }

@@ -16,7 +16,7 @@ enum MsgLevel
     ML_INFO_EVENT,         // 进程事件
 };
 
-static char color[][32] = {
+static char *color[] = {
     "\033[1;31m",            // 亮红
 //    "\033[1;31;5m",            // 亮红闪
     //    "\033[0;32;31m",         // 暗红

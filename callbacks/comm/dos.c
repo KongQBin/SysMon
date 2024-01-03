@@ -10,22 +10,17 @@ inline long nDoS(long call) { return ~DOS&call; }
 
 inline long cbDoS(CB_ARGVS)
 {
-    Interactive *task = argv->task;
     pid_t *pid = &argv->info->pid;
     long *regs = argv->task->regs;
-    int block = argv->block;
     // 修改系统调用号为不存在的调用，起到拒绝服务的目的
     CALL(regs) = CALL(regs) | DOS;
-    // 触发
-    task->type = TTT_SETREGS;
-    write(argv->td->fd[1],task,sizeof(Interactive));
-//    read(argv->td->fd[0],task,sizeof(Interactive));
+    if(ptrace(PTRACE_SETREGS, *pid, NULL, regs) < 0)
+        DMSG(ML_WARN,"cbDoS error");
     return 0;
 }
 
 inline long ceDoS(CB_ARGVS)
 {
-    Interactive *task = argv->task;
     pid_t *pid = &argv->info->pid;
     long *regs = argv->task->regs;
     int block = argv->block;
@@ -38,9 +33,7 @@ inline long ceDoS(CB_ARGVS)
 
     //    printf("rax = %lld\n",RET(regs));
     RET(regs) = -1;
-    // 触发
-    task->type = TTT_SETREGS;
-    write(argv->td->fd[1],task,sizeof(Interactive));
-//    read(argv->td->fd[0],task,sizeof(Interactive));
+    if(ptrace(PTRACE_SETREGS, *pid, NULL, regs) < 0)
+        DMSG(ML_WARN,"cbDoS error");
     return 0;
 }
