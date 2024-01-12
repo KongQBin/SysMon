@@ -1,12 +1,7 @@
 #include "workthread.h"
+#include "workprocess.h"
 
-
-#define EVENT_CONCERN \
-(PTRACE_O_TRACESYSGOOD|PTRACE_O_TRACEEXEC|\
- PTRACE_O_TRACEEXIT|PTRACE_O_TRACECLONE|\
- PTRACE_O_TRACEFORK|PTRACE_O_TRACEVFORK)
-
-void getProcId(int eveType,pid_t pid,int status,ControlInfo *info)
+void getProcId(int eveType,pid_t pid,int status,struct _ControlInfo *info)
 {
     return;
     pid_t spid;
@@ -114,7 +109,7 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
 {
     pid_t *pid = &task->pid;
     int *status = &task->status;
-    ControlInfo *info = td->cInfo;
+    struct _ControlInfo *info = td->cInfo;
 
     dmsg(" pid is %d\n",*pid);
     dmsg(">     status is %d     <\n",*status);
@@ -185,7 +180,7 @@ void *workThread(void* pinfo)
 {
     sleep(2);
     ThreadData *td = pinfo;
-    ControlInfo *info = td->cInfo;
+    struct _ControlInfo *info = td->cInfo;
 
     int run = 1;
     int status = 0, callid = -1;

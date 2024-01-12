@@ -46,7 +46,7 @@ static char *color[] = {
 #define dmsg(fmt, ...)
 #endif
 
-#define SPIK_LEVEN(level) if(/*level == ML_INFO*/1) break;
+#define SPIK_LEVEN(level) if(/*level == ML_INFO*/0) break;
 #define NCOLOR              "\033[m"    /* 清除颜色 */
 #define DMSG(level, fmt, ...) {\
 do{\
@@ -59,6 +59,6 @@ do{\
     printf("[%s:%d]:\t",__FILE__,__LINE__);\
     printf(fmt,##__VA_ARGS__);\
     printf(NCOLOR);\
-    fflush(stdout);\
+    /*fflush(stdout);*/\
 }while(0);\
 }

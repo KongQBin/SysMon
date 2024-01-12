@@ -11,7 +11,7 @@ typedef struct _GlobalData
 } GlobalData;
 
 struct pidinfo;
-typedef struct _ControlInfo
+typedef struct _ControlInfo2
 {
     pid_t cpid;                                 // 当前进行监控的线程ID
     pid_t tpid;                                 // 要监控的目标进程组ID
@@ -27,10 +27,6 @@ typedef struct _ControlInfo
 
     pthread_cond_t  *cond;  // 追踪线程的条件变量
     void *taddr;            // 工作线程给追踪线程的结构指针
-} ControlInfo;
-#define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/64] |= 1 << CALLID%64;}
-#define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/64] ^= 1 << CALLID%64;}
-#define ISBLOCK(ControlInfo,CALLID)               (ControlInfo->block[CALLID/64] & 1 << CALLID%64)
-#define SETFUNC(ControlInfo,CALLID,CBF,CEF)       {ControlInfo->cbf[CALLID] = CBF; ControlInfo->cef[CALLID] = CEF;}
-#define UNSETFUNC(ControlInfo,CALLID,CBF,CEF)     SETFUNC(ControlInfo,CALLID,NULL,NULL)
+} ControlInfo2;
+
 

@@ -26,30 +26,30 @@
     #define PT_GETREGS 12
 #endif
 
-#ifndef PTRACE_EVENT_FORK
-    #define PTRACE_EVENT_FORK       1
-#endif
-#ifndef PTRACE_EVENT_VFORK
-    #define PTRACE_EVENT_VFORK      2
-#endif
-#ifndef PTRACE_EVENT_CLONE
-    #define PTRACE_EVENT_CLONE      3
-#endif
-#ifndef PTRACE_EVENT_EXEC
-    #define PTRACE_EVENT_EXEC       4
-#endif
-#ifndef PTRACE_EVENT_VFORK_DONE
-    #define PTRACE_EVENT_VFORK_DONE 5
-#endif
-#ifndef PTRACE_EVENT_EXIT
-    #define PTRACE_EVENT_EXIT       6
-#endif
-#ifndef PTRACE_EVENT_SECCOMP
-    #define PTRACE_EVENT_SECCOMP    7
-#endif
-#ifndef PTRACE_EVENT_STOP
-    #define PTRACE_EVENT_STOP       128
-#endif
+//#ifndef PTRACE_EVENT_FORK
+//    #define PTRACE_EVENT_FORK       1
+//#endif
+//#ifndef PTRACE_EVENT_VFORK
+//    #define PTRACE_EVENT_VFORK      2
+//#endif
+//#ifndef PTRACE_EVENT_CLONE
+//    #define PTRACE_EVENT_CLONE      3
+//#endif
+//#ifndef PTRACE_EVENT_EXEC
+//    #define PTRACE_EVENT_EXEC       4
+//#endif
+//#ifndef PTRACE_EVENT_VFORK_DONE
+//    #define PTRACE_EVENT_VFORK_DONE 5
+//#endif
+//#ifndef PTRACE_EVENT_EXIT
+//    #define PTRACE_EVENT_EXIT       6
+//#endif
+//#ifndef PTRACE_EVENT_SECCOMP
+//    #define PTRACE_EVENT_SECCOMP    7
+//#endif
+//#ifndef PTRACE_EVENT_STOP
+//    #define PTRACE_EVENT_STOP       128
+//#endif
 
 /*                    提供服务                    */
 /*宏名称（处理器位数？64位系统调用号：32位系统调用号）*/
@@ -69,3 +69,8 @@
 #define ID_EXECVEAT     (IS_ARCH_64 ? 322 : 358)
 #define ID_KILL         (IS_ARCH_64 ? 62 : 37)
 #define ID_EXIT_GROUP   (IS_ARCH_64 ? 231 : 252)
+
+#define EVENT_CONCERN \
+(PTRACE_O_TRACESYSGOOD|PTRACE_O_TRACEEXEC|\
+ PTRACE_O_TRACEEXIT|PTRACE_O_TRACECLONE|\
+ PTRACE_O_TRACEFORK|PTRACE_O_TRACEVFORK)

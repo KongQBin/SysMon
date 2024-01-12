@@ -1,6 +1,5 @@
 #include "sysmon.h"
 
-
 struct rb_root *cbTree = NULL;
 pid_t contpid = 0;
 
@@ -111,79 +110,249 @@ pid_t *getTask(pid_t gpid)
 
 void *workThread(void* pinfo);
 int filterGPid(const struct dirent *dir);
-int startSysmon(ControlInfo *info)
+//int startSysmon(ControlInfo *info)
+//{
+//    info->cpid = gettid();
+//    registerSignal();
+
+//    const char *directory = "/proc";
+//    struct dirent **namelist;
+//    int num_entries = scandir(directory, &namelist, filterGPid, alphasort);
+//    if (num_entries == -1) {
+//        perror("scandir");
+//        return -1;
+//    }
+
+//    pid_t *tmp = NULL;
+//    pid_t pidss[1024] = {0};
+//    memset(&pidss,0,sizeof(pidss));
+//    size_t pidsslen = 0;
+
+//    FILE *fp = fopen("/tmp/gpids","w+");
+//    for (int i = 0; i < num_entries; ++i)
+//    {
+//        printf("%s\n", namelist[i]->d_name);
+//        pid_t gpid;
+//        char *strend;
+//        gpid = strtoll(namelist[i]->d_name,&strend,10);
+//        if(gpid && strend != namelist[i]->d_name)
+//        {
+//            if(gpid != 42267) continue;
+////            // 获取进程组中的所有进程
+//            tmp = getTask(gpid);
+//            if(!tmp) return -2;
+//            if(fp) fprintf(fp,"%d\n",gpid);
+
+//            pid_t *pids = tmp;
+//            // 对各个进程都建立追踪
+//            while(*pids)
+//            {
+//                printf("*pids = %d\n",*pids);
+//                pidss[pidsslen] = *pids;
+//                ++ pidsslen;
+//                ++ pids;
+//            }
+//            free(tmp);
+//            tmp = NULL;
+//        }
+////        free(namelist[i]);
+//    }
+//    fclose(fp);
+
+
+//    int num = pidsslen;
+//    for(int i=0;i < (num > pidsslen ? pidsslen : num);++i)
+//    {
+//        if(pidss[i] == 0) continue;
+//        // 附加到被传入PID的进程
+//        if(ptrace(PTRACE_ATTACH, pidss[i], 0, 0) < 0)
+//        {
+//            dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,pidss[i]);
+//            if(errno == 3) continue;
+//            if(errno != 1) goto END;
+//        }
+//        // 添加进pid树
+//        if(errno != 1) pidInsert(&info->ptree,createPidInfo(pidss[i],0,0));
+//    }
+
+//    ThreadData mtt;
+//    // 初始化成员属性
+//    mtt.cInfo = info;
+//    workThread(&mtt);
+
+//END:
+//    DMSG(ML_INFO,"Tree Size = %llu\n",pidTreeSize(&info->ptree));
+//    if(tmp) {free(tmp); tmp = NULL;}
+//    info->exit = 1;
+//    return 0;
+//}
+
+int mreadlinkFilter(char *originPath)
 {
-    info->cpid = gettid();
-    registerSignal();
-
-    const char *directory = "/proc";
-    struct dirent **namelist;
-    int num_entries = scandir(directory, &namelist, filterGPid, alphasort);
-    if (num_entries == -1) {
-        perror("scandir");
-        return -1;
-    }
-
-    pid_t *tmp = NULL;
-    pid_t pidss[1024] = {0};
-    memset(&pidss,0,sizeof(pidss));
-    size_t pidsslen = 0;
-
-    FILE *fp = fopen("/tmp/gpids","w+");
-    for (int i = 0; i < num_entries; ++i)
+    int ret = 0;
+    size_t mlen = 0, olen = 0;
+    char *targetPath = NULL;
+    while(1)
     {
-        printf("%s\n", namelist[i]->d_name);
-        pid_t gpid;
-        char *strend;
-        gpid = strtoll(namelist[i]->d_name,&strend,10);
-        if(gpid && strend != namelist[i]->d_name)
-        {
-            if(gpid != 42267) continue;
-//            // 获取进程组中的所有进程
-            tmp = getTask(gpid);
-            if(!tmp) return -2;
-            if(fp) fprintf(fp,"%d\n",gpid);
-
-            pid_t *pids = tmp;
-            // 对各个进程都建立追踪
-            while(*pids)
+        targetPath = calloc(1,mlen + 256);
+        if(!targetPath) {ret = 1; break;}
+        olen = mlen + 256;
+        mlen = readlink(originPath, targetPath, olen);
+        if(!targetPath) {ret = 1; break;}
+        if(mlen < olen) break;
+        else {free(targetPath);targetPath = NULL;}
+    }
+    if(!ret && targetPath)
+    {
+        do{
+            // 内核进程没有exe
+            if(!strlen(targetPath))
             {
-                printf("*pids = %d\n",*pids);
-                pidss[pidsslen] = *pids;
-                ++ pidsslen;
-                ++ pids;
+                ret = 1;
+                break;
             }
-            free(tmp);
-            tmp = NULL;
-        }
-//        free(namelist[i]);
+
+            // Xorg但凡使用图形化就会刷新，也不监控
+            char *index = NULL;
+            if((index = strstr(targetPath,"Xorg")) != NULL)
+            {
+                if((index + strlen("Xorg"))[0] == '\0')
+                {
+                    ret = 1;
+                    break;
+                }
+            }
+        }while(0);
     }
-    fclose(fp);
+    if(targetPath) free(targetPath);
+    return ret;
+}
 
-
-    int num = pidsslen;
-    for(int i=0;i < (num > pidsslen ? pidsslen : num);++i)
+// 过滤进程组
+int filterGPid(const struct dirent *dir)
+{
+    int ret = 0;
+    pid_t gpid = 0;
+    char *strend = NULL;
+    char statusPath[64] = { 0 };
+    do
     {
-        if(pidss[i] == 0) continue;
-        // 附加到被传入PID的进程
-        if(ptrace(PTRACE_ATTACH, pidss[i], 0, 0) < 0)
+        if(dir->d_type != DT_DIR)                           break;  // 非目录
+        snprintf(statusPath,sizeof(statusPath)-1,"/proc/%s/exe",dir->d_name);
+        if(access(statusPath,F_OK))                         break;  // 目录中不包含exe文件
+        if(mreadlinkFilter(statusPath))                     break;  // 进一步过滤
+        gpid = strtoll(dir->d_name,&strend,10);
+        if(dir->d_name != strend && (gpid == getpid()))     break;  // 转换成功但pid等于自身
+        ret = 1;
+    }while(0);
+    return ret;
+}
+
+
+
+void MonProcDataOption(MonProc *mpdata)
+{
+
+}
+void OutsideDataOption(Outside *odata)
+{
+    switch (odata->type) {
+    case OT_AdmMon:
+        sendManageInfo(&odata->info);
+        break;
+    case OT_AdmMain:
+        break;
+    default:
+        break;
+    }
+}
+
+
+int gProcNum;
+int gPipeToMain[2];             // 用于给主进程进行通讯的管道
+int gPipeFromMain[2];           // 用于从主进程获取信息的管道
+InitInfo gInitInfo[PROC_MAX];   // 用于保存最初的初始化信息
+
+int printMsg(struct CbMsg *info);
+int StartSystemMonitor()
+{
+    // 初始化寄存器偏移
+    initRegsOffset_f();
+    // 初始化主进程进出消息的管道
+    pipe(gPipeToMain);
+    pipe(gPipeFromMain);
+
+    // 根据CPU核心数量初始化‘监控进程数量’
+    int gProcNum = sysconf(_SC_NPROCESSORS_ONLN);
+    gProcNum = gProcNum > PROC_MAX ? PROC_MAX : gProcNum;
+    DMSG(ML_INFO, "Current cpu cont %d\n", gProcNum);
+
+    // 定义'控制线程'所使用的匿名管道
+    memset(&gInitInfo,0,sizeof(gInitInfo));
+    // 根据核心数量创建‘监控进程’
+    for(int i=0; i<gProcNum; ++i)
+    {
+        pipe(gInitInfo[i].cfd);
+        // 创建‘控制线程’并初始化
+        gInitInfo[i].tid = createManageThread(&gInitInfo[i]);
+        while(!gInitInfo[i].pid) usleep(1);/*等待初始化*/
+        DMSG(ML_INFO,"Manage thread pid %lld\n",gInitInfo[i].pid);
+
+        pid_t pid = fork();
+        if(pid == 0)
         {
-            dmsg("PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,pidss[i]);
-            if(errno == 3) continue;
-            if(errno != 1) goto END;
+            // 设置回调函数
+            PutMsg = printMsg;
+            MonProcMain(gInitInfo[i].pid);
+            exit(0);
         }
-        // 添加进pid树
-        if(errno != 1) pidInsert(&info->ptree,createPidInfo(pidss[i],0,0));
+        else if(pid < 0)
+        {
+            DMSG(ML_ERR, "fork fail errcode %d, err is %s\n", errno, strerror(errno));
+            exit(-1);
+        }
+        gInitInfo[i].spid = pid;
     }
 
-    ThreadData mtt;
-    // 初始化成员属性
-    mtt.cInfo = info;
-    workThread(&mtt);
-
-END:
-    DMSG(ML_INFO,"Tree Size = %llu\n",pidTreeSize(&info->ptree));
-    if(tmp) {free(tmp); tmp = NULL;}
-    info->exit = 1;
+    sleep(2);
+    // 再一个循环，用来将ControlInfo传递给各‘监控进程’
+    int wbuflen = sizeof(ManageInfo)+sizeof(ControlBaseInfo);
+    char *wbuf = calloc(1,wbuflen*gProcNum);
+    for(int i=0;i<gProcNum;++i)
+    {
+        char *tmpaddr = wbuf+i*wbuflen;
+        ManageInfo *minfo = (ManageInfo *)(tmpaddr);
+        ControlBaseInfo *cbinfo = (ControlBaseInfo *)(minfo+1);
+        minfo->type = MT_Init;
+        cbinfo->pid = gInitInfo[i].spid;
+        cbinfo->mainpid = gettid();
+        cbinfo->bnum = gProcNum;
+        for(int j=0;j<gProcNum;++j)
+        {
+            cbinfo->bpids[j] = gInitInfo[j].spid;
+        }
+        memcpy(cbinfo->tpfd,gPipeToMain,sizeof(gPipeToMain));
+        write(gInitInfo[i].cfd[1],tmpaddr,wbuflen);
+        usleep(100);
+    }
+    sleep(100);
+    // 遍历系统中所有的线程并对线程进行分配
+    MData data;
+    while(1)
+    {
+        memset(&data,0,sizeof(data));
+        read(gPipeToMain[0],&data,sizeof(data));
+        switch (data.origin) {
+        case MDO_MonProc:
+            MonProcDataOption(&data.monproc);
+            break;
+        case MDO_Outside:
+            OutsideDataOption(&data.outside);
+            break;
+        default:
+            DMSG(ML_ERR,"Unknown MData Origin is %d\n",data.origin);
+            break;
+        }
+    }
     return 0;
 }

@@ -15,7 +15,7 @@ inline long cbDoS(CB_ARGVS)
     // 修改系统调用号为不存在的调用，起到拒绝服务的目的
     CALL(regs) = CALL(regs) | DOS;
     if(ptrace(PTRACE_SETREGS, *pid, NULL, regs) < 0)
-        DMSG(ML_WARN,"cbDoS error");
+        DMSG(ML_WARN,"cbDoS error\n");
     return 0;
 }
 
@@ -34,6 +34,6 @@ inline long ceDoS(CB_ARGVS)
     //    printf("rax = %lld\n",RET(regs));
     RET(regs) = -1;
     if(ptrace(PTRACE_SETREGS, *pid, NULL, regs) < 0)
-        DMSG(ML_WARN,"cbDoS error");
+        DMSG(ML_WARN,"cbDoS error\n");
     return 0;
 }

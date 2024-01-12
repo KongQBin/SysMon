@@ -1,0 +1,69 @@
+#pragma once
+#include <pthread.h>
+#include "pidtree.h"
+#include "defunc.h"
+#include "callbacks.h"
+
+/*      Manage Thread Struct    */
+typedef struct _InitInfo
+{
+    pid_t spid;                 // 子进程的pid
+    int cfd[2];                 // 用于与‘控制线程’交互的管道
+    // 分配给子进程的通讯线程，子进程通过对其进行监控，来达到打断wait进行通讯的目的
+    pid_t pid;                  // 线程pid
+    pthread_t tid;              // 线程tid
+} InitInfo;
+
+typedef enum _ManageType
+{
+    MT_Init = -100,
+    MT_AddPid = -101,       // 新增对进程组的监控
+    MT_AddTid = -102,       // 新增对进(线)程的监控
+    MT_DelPid = -103,       // 取消对进程组的监控
+    MT_DelTid = -104,       // 取消对进(线)程的监控
+    MT_CallPass,            // 放过某个调用
+    MT_CallDos,             // 拒绝某个调用
+    MT_ToExit,              // 退出监控
+} ManageType;
+typedef struct _ManageInfo
+{
+    ManageType type;
+    pid_t      pid;
+    pid_t      tpid;    // target process
+    int        *tpfd;   // 目标进程的‘控制线程’使用的管道
+} ManageInfo;
+
+
+
+
+/*      Mon Proc Struct     */
+#define PROC_MAX    16
+#define CALL_MAX    512
+typedef struct _ControlBaseInfo
+{
+    pid_t pid;                  // 当前进程的pid
+    int tpfd[2];                // 匿名管道，用于向父进程通信
+    int bnum;                   // 兄弟进程的数量，一般与cpu核心数量一致
+    pid_t bpids[PROC_MAX];      // 兄弟进程的pid，用于忽略监控
+    pid_t mainpid;              // 主进程pid
+} ControlBaseInfo;
+typedef struct _ControlInfo
+{
+    ControlBaseInfo binfo;                         // 启动时，由主进程初始化的基本信息
+    struct rb_root ptree;                          // 所监控的进程
+    struct rb_root ftree;                          // 受保护的文件
+    struct rb_root dtree;                          // 进程防护树
+    int64_t block[CALL_MAX/64];                    // 用来判断与bloom对应的系统调用是否需要阻塞
+    // 用函数指针的形式以空间换时间，既可以调用，又可以作为布隆过滤器
+    // long (*func)(pid_t,long *); 函数指针指向的函数
+    long (*cbf[CALL_MAX])(CB_ARGVS_TYPE());        // call begin func     在执行系统调用前需要调用的函数   (4kb)
+    long (*cef[CALL_MAX])(CB_ARGVS_TYPE());        // call  end  func     在执行系统调用后需要调用的函数   (4kb)
+
+    // tmp
+    int toexit;
+} ControlInfo;
+#define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/64] |= 1 << CALLID%64;}
+#define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/64] ^= 1 << CALLID%64;}
+#define ISBLOCK(ControlInfo,CALLID)               (ControlInfo->block[CALLID/64] & 1 << CALLID%64)
+#define SETFUNC(ControlInfo,CALLID,CBF,CEF)       {ControlInfo->cbf[CALLID] = CBF; ControlInfo->cef[CALLID] = CEF;}
+#define UNSETFUNC(ControlInfo,CALLID,CBF,CEF)     SETFUNC(ControlInfo,CALLID,NULL,NULL)

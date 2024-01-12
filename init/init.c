@@ -2,9 +2,9 @@
 struct regs_offset g_regsOffset;
 extern long DoS();
 extern int initRegsOffset();       // 初始化寄存器偏移
-int init()
+int initRegsOffset_f()
 {
-    int ret = initRegsOffset();
+    int ret = initRegsOffset_r();
     DMSG(ML_INFO,"current process id = %d\n",getpid());
     DMSG(ML_INFO,"initRegsOffset ret = %d\n",ret);
     DMSG(ML_INFO,"offset.call = %d\n",g_regsOffset.call);
@@ -39,7 +39,7 @@ inline struct syscall* searchCallbackTree(struct rb_root *tree,long id)
     return cbSearch(tree,~DoS() & id);
 }
 
-int initRegsOffset()
+int initRegsOffset_r()
 {
     int ret = -1;
     const char *msg = "test write";

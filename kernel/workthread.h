@@ -8,9 +8,10 @@
 #include "defunc.h"
 #define MAX_THREAD_NUM  1
 
+struct _ControlInfo;
 typedef struct _ThreadData
 {
-    ControlInfo *cInfo;      // 共享数据
+    struct _ControlInfo *cInfo;      // 共享数据
 } ThreadData;
 
 // 需要帮助子线程做的任务类型
