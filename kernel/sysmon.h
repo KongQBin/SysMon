@@ -9,6 +9,7 @@
 #include "workthread.h"
 #include "workprocess.h"
 #include "managethread.h"
+#include "iteratesys.h"
 //#include "pidtree.h"
 //#include "general.h"
 //#include "callbacks.h"

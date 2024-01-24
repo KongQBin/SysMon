@@ -16,24 +16,24 @@ typedef struct _InitInfo
 
 typedef enum _ManageType
 {
-    MT_Init = -100,
-    MT_AddPid = -101,       // 新增对进程组的监控
-    MT_AddTid = -102,       // 新增对进(线)程的监控
-    MT_DelPid = -103,       // 取消对进程组的监控
-    MT_DelTid = -104,       // 取消对进(线)程的监控
+    MT_Start = 10000,
+    MT_Init  = 10001,
+    MT_AddPid = 10002,       // 新增对进程组的监控
+    MT_AddTid = 10003,       // 新增对进(线)程的监控
+    MT_DelPid = 10004,       // 取消对进程组的监控
+    MT_DelTid = 10005,       // 取消对进(线)程的监控
     MT_CallPass,            // 放过某个调用
     MT_CallDos,             // 拒绝某个调用
     MT_ToExit,              // 退出监控
+    MT_End,
 } ManageType;
 typedef struct _ManageInfo
 {
     ManageType type;
     pid_t      pid;
-    pid_t      tpid;    // target process
-    int        *tpfd;   // 目标进程的‘控制线程’使用的管道
+    pid_t      tpid;      // target process
+    int        tpfd[2];   // 目标进程的‘控制线程’使用的管道
 } ManageInfo;
-
-
 
 
 /*      Mon Proc Struct     */
@@ -53,7 +53,7 @@ typedef struct _ControlInfo
     struct rb_root ptree;                          // 所监控的进程
     struct rb_root ftree;                          // 受保护的文件
     struct rb_root dtree;                          // 进程防护树
-    int64_t block[CALL_MAX/64];                    // 用来判断与bloom对应的系统调用是否需要阻塞
+    int64_t block[CALL_MAX/sizeof(void*)/8];         // 用来判断与bloom对应的系统调用是否需要阻塞
     // 用函数指针的形式以空间换时间，既可以调用，又可以作为布隆过滤器
     // long (*func)(pid_t,long *); 函数指针指向的函数
     long (*cbf[CALL_MAX])(CB_ARGVS_TYPE());        // call begin func     在执行系统调用前需要调用的函数   (4kb)
@@ -62,8 +62,8 @@ typedef struct _ControlInfo
     // tmp
     int toexit;
 } ControlInfo;
-#define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/64] |= 1 << CALLID%64;}
-#define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/64] ^= 1 << CALLID%64;}
-#define ISBLOCK(ControlInfo,CALLID)               (ControlInfo->block[CALLID/64] & 1 << CALLID%64)
+#define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/sizeof(void*)/8] |= 1 << CALLID%(sizeof(void*)*8);}
+#define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/sizeof(void*)/8] ^= 1 << CALLID%(sizeof(void*)*8);}
+#define ISBLOCK(ControlInfo,CALLID)               (ControlInfo->block[CALLID/sizeof(void*)/8] & 1 << CALLID%(sizeof(void*)*8))
 #define SETFUNC(ControlInfo,CALLID,CBF,CEF)       {ControlInfo->cbf[CALLID] = CBF; ControlInfo->cef[CALLID] = CEF;}
 #define UNSETFUNC(ControlInfo,CALLID,CBF,CEF)     SETFUNC(ControlInfo,CALLID,NULL,NULL)

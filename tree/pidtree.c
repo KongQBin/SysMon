@@ -42,6 +42,7 @@ int pidDelete(struct rb_root *tree, pid_t id)
     rb_erase(&info->node, tree);
     free(info);
     info = NULL;
+    DMSG(ML_INFO,"Delete pid tree data->pid = %d\n",id);
     return 0;
 }
 

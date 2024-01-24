@@ -10,6 +10,7 @@
 #include "cbdefine.h"
 #include "callbacks.h"
 #include "managethread.h"
+#include "sys/resource.h"
 
 
 

@@ -1,12 +1,16 @@
 #pragma once
-struct _ThreadData;
+struct _ControlInfo;
 struct _Interactive;
+typedef struct _CallContext
+{
+    long *regs;
+} CallContext;
+
 typedef struct _CbArgvs
 {
-    struct pidinfo *info;
-    int block;
-    struct _ThreadData *td;
-    struct _Interactive *task;
+    struct pidinfo *info;           // 用来获取进程关系
+    struct _ControlInfo *cinfo;     // 存放控制信息
+    CallContext cctext;             // 当前系统调用的上下文
 } CbArgvs;
 /*                  回调函数形参                  */
 #define CB_ARGVS_TYPE(av1)            CbArgvs *av1
@@ -26,10 +30,10 @@ typedef struct _CbArgvs
 
 
 // 拒绝(调用)服务
-extern long DoS();                         //(内联)获取dos标识
-extern long nDoS(long call);               //(内联)临时去除dos标记
-extern long cbDoS(CB_ARGVS);  //设置拒绝服务
-extern long ceDoS(CB_ARGVS);  //返回拒绝服务
+extern long DoS();                         // (内联)获取dos标识
+extern long nDoS(long call);               // (内联)临时去除dos标记
+extern long cbDoS(CB_ARGVS);               // 设置拒绝服务
+extern long ceDoS(CB_ARGVS);               // 返回拒绝服务
 
 // 获取PID详细信息
 extern int getCwd(struct pidinfo *info,char **cwd, size_t *len);                    // cwd  = 当前运行路径                  传入空指针的地址，需要手动去释放

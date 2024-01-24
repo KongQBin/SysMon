@@ -3,21 +3,21 @@
 
 int getStrArg(CbArgvs *argv)
 {
-    Interactive *task = argv->task;
-    char *str = NULL;
-    int *resg2Offset = (int*)&g_regsOffset + 2;
-    for(int i=0;i<sizeof(task->argv)/sizeof(task->argv[0]);++i)
-    {
-        if(task->argvType[i] == AT_STR)
-        {
-            if(getRegsStrArg(task->pid,task->regs[*(resg2Offset+i)],&str,&task->argvLen[i]))
-            {
-                DMSG(ML_WARN,"PTRACE_PEEKDATA error\n");
-            }
-            else
-                task->argv[i] = (long)str;
-        }
-    }
+//    Interactive *task = argv->task;
+//    char *str = NULL;
+//    int *resg2Offset = (int*)&g_regsOffset + 2;
+//    for(int i=0;i<sizeof(task->argv)/sizeof(task->argv[0]);++i)
+//    {
+//        if(task->argvType[i] == AT_STR)
+//        {
+//            if(getRegsStrArg(task->pid,task->regs[*(resg2Offset+i)],&str,&task->argvLen[i]))
+//            {
+//                DMSG(ML_WARN,"PTRACE_PEEKDATA error\n");
+//            }
+//            else
+//                task->argv[i] = (long)str;
+//        }
+//    }
     return 0;
 }
 
@@ -41,8 +41,7 @@ int getRegsStrArg(pid_t pid, long arg, char **str, size_t *len)
 
         for(;!ret && j<size/WORDLEN;++j)
         {
-            long tmp = 0;
-            tmp = ptrace(PTRACE_PEEKDATA, pid, arg + (j*WORDLEN), NULL);
+            long tmp = ptrace(PTRACE_PEEKDATA, pid, arg + (j*WORDLEN), NULL);
             memcpy(&(*str)[j*WORDLEN], &tmp, WORDLEN);
             strend = memchr(&(*str)[j*WORDLEN],'\0',WORDLEN);
             if(!strend)                               continue; // 未找到结束符号

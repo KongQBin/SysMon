@@ -129,9 +129,13 @@ void testCreateDaemon()
 int main()
 {
     printf("pid is %d tid = %d\n",getpid(),gettid());
+    while(1)
+    {
+        sleep(1);
+    }
 //    testReadLink();
 //    testCreateThread();
 //    testCreateDaemon();
-    testWrite();
+//    testWrite();
 	return 0;
 }

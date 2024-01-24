@@ -32,19 +32,24 @@ case SIGTRAP:  /* kill -5 */\
 #define MANAGE_SIGNAL(pid,status,info){\
 if(WIFSIGNALED(status))/*kill -9)*/\
 {\
-        DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
-        return AP_TARGET_PROCESS_EXIT;\
+    DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
+    return WM_TARGET_PROCESS_EXIT;\
 }\
 int tmp = WSTOPSIG(status);\
 int signal = (tmp & 0x7F);\
-dmsg(">>    signal is %d    <<\n",signal);\
+/*DMSG(ML_INFO,">>    signal is %d    <<\n",signal);*/\
 switch (signal) {\
+case 0:\
+case SIGTRAP:  /* kill -5 */\
+case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
+    break;\
 case SIGTERM:  /* kill -15 */\
 case SIGINT:   /* 2 Ctrl + c */\
-    return AP_IS_SIGNAL;\
-case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
-case SIGTRAP:  /* kill -5 */\
-    break;\
+case 31:       /*SIGUNUSED 用谷歌浏览器打开知乎必定触发该信号，如果不放行就会导致知乎页面卡死*/\
+/*default:*/\
+    /*DMSG(ML_INFO,"pid is %llu status = %d tmp = %d signal = %d\n",pid,status,tmp,signal);*/\
+    status = signal;\
+    return WM_IS_SIGNAL;\
 }\
 }
 
@@ -106,7 +111,7 @@ case PTRACE_EVENT_EXIT:/*进程结束*/\
     DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
 /*    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
         dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\*/\
-    return AP_TARGET_PROCESS_EXIT;\
+    return WM_TARGET_PROCESS_EXIT;\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\
 {\
@@ -115,11 +120,11 @@ case PTRACE_EVENT_STOP:/*进程暂停*/\
 }\
 default:\
 {\
-    if(event) DMSG(ML_INFO_EVENT,"Unknown event is %d!!! Target pid is %d\n",event,pid);\
+    if(event) DMSG(ML_WARN,"Unknown event is %d!!! Target pid is %d\n",event,pid);\
     break;\
 }\
 }\
-if(event) return AP_IS_EVENT;\
+if(event) return WM_IS_EVENT;\
 }
 //  if(event)\
     {\

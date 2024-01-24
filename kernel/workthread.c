@@ -1,7 +1,7 @@
 #include "workthread.h"
 #include "workprocess.h"
 
-void getProcId(int eveType,pid_t pid,int status,struct _ControlInfo *info)
+static void getProcId(int eveType,pid_t pid,int status,struct _ControlInfo *info)
 {
     return;
     pid_t spid;
@@ -34,7 +34,7 @@ void getProcId(int eveType,pid_t pid,int status,struct _ControlInfo *info)
         dmsg("PTRACE_GETEVENTMSG : %s(%d) pid is %d\n", strerror(errno),errno,spid);
 }
 
-int getRelationalPid(const pid_t *pid, pid_t *gpid, pid_t *ppid)
+static int getRelationalPid(const pid_t *pid, pid_t *gpid, pid_t *ppid)
 {
     *gpid = 0;
     *ppid = 0;
@@ -109,13 +109,13 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
 {
     pid_t *pid = &task->pid;
     int *status = &task->status;
-    struct _ControlInfo *info = td->cInfo;
+    ControlInfo *info = td->cInfo;
 
     dmsg(" pid is %d\n",*pid);
     dmsg(">     status is %d     <\n",*status);
     /*注意这两个宏函数存在return的情况*/
-    MANAGE_SIGNAL(*pid,*status,info);
-    MANAGE_EVENT(*pid,*status,info);
+//    MANAGE_SIGNAL(*pid,*status,info);
+//    MANAGE_EVENT(*pid,*status,info);
 
 //    struct user_regs_struct reg;
     if(ptrace(PTRACE_GETREGS, *pid, 0, task->regs) < 0)
@@ -154,10 +154,10 @@ enum APRET analysisPreproccess(ThreadData *td, Interactive *task, int *callid)
     {
         CbArgvs av;
         memset(&av,0,sizeof(CbArgvs));
-        av.block = ISBLOCK(info,*callid);
+//        av.block = ISBLOCK(info,*callid);
         av.info = tmpInfo;
-        av.task = task;
-        av.td = td;
+//        av.task = task;
+//        av.td = td;
         IS_BEGIN(pregs) ? info->cbf[*callid](&av): info->cef[*callid](&av);
     }
     else

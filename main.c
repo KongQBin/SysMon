@@ -54,6 +54,7 @@ void sigOptions(int sig)
 
 int main(int argc, char** argv)
 {
+    setpriority(PRIO_PROCESS, getpid(), -20);
     signal(SIGINT,sigOptions);  // Ctrl + c
     signal(SIGTERM,sigOptions); // kill -15
     StartSystemMonitor();

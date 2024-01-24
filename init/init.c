@@ -1,7 +1,7 @@
 #include "init.h"
 struct regs_offset g_regsOffset;
 extern long DoS();
-extern int initRegsOffset();       // 初始化寄存器偏移
+extern int initRegsOffset_r();       // 初始化寄存器偏移
 int initRegsOffset_f()
 {
     int ret = initRegsOffset_r();
