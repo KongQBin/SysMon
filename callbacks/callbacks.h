@@ -25,7 +25,6 @@ typedef struct _CbArgvs
 #include "readme.h"     // 首次开发回调函数请先阅读该文档
 #include "testfunc.h"
 //#include "controlinfo.h"
-#include "workthread.h"
 
 
 

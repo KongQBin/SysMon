@@ -5,8 +5,6 @@
 #include <sys/sysctl.h>
 #include "defunc.h"
 #include "testfunc.h"
-#include "procinfo.h"
-#include "workthread.h"
 #include "workprocess.h"
 #include "managethread.h"
 #include "iteratesys.h"

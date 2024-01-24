@@ -1,4 +1,5 @@
 #pragma once
+#include <dirent.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -11,7 +12,4 @@
 #include "callbacks.h"
 #include "managethread.h"
 #include "sys/resource.h"
-
-
-
 void MonProcMain(pid_t tid);

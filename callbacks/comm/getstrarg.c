@@ -1,5 +1,4 @@
 #include "callbacks.h"
-#include "workthread.h"
 
 int getStrArg(CbArgvs *argv)
 {
