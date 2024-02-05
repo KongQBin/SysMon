@@ -20,31 +20,52 @@
 #include <stdio.h>
 
 // 被监控的进程信息
-struct pidinfo
+struct _ControlInfo;
+typedef struct _PidInfo
 {
     struct rb_node node;
     pid_t pid;                  //进程ID
     pid_t gpid;                 //进程属于哪个进程组
-    pid_t ppid;                 //进程的父进程组（只监控追踪之后确认的关系，之前的默认为0）
-};
+    pid_t ppid;                 //进程的父进程组（目前只监控追踪之后确认的关系，之前的默认为0）
 
-static inline int searchPidInfoCallBack(struct pidinfo *info,int pid,int opt)
+    int64_t flags;                      //setopt、stop状态等
+    struct _ControlInfo *cinfo;         //当要对这个进程进行独立管理时，该指针将指向新的内存，否则指向gDefaultControlInfo
+
+    int status;         // 当前进程返回的状态
+} PidInfo;
+#define PID_STOP      0
+#define PID_SETOPT    1
+
+#define SET_STOP(flags)         (flags |= 1<<PID_STOP)
+#define SET_SETOPT(flags)       (flags |= 1<<PID_SETOPT)
+#define UNSET_STOP(flags)       (flags &= ~(1<<PID_STOP))
+#define UNSET_SETOPT(flags)     (flags &= ~(1<<PID_SETOPT))
+#define IS_STOP(flags)          (flags & (1<<PID_STOP))
+#define IS_SETOPT(flags)        (flags & (1<<PID_SETOPT))
+
+
+
+static inline int searchPidInfoCallBack(PidInfo *info,int pid,int opt)
 {
 //    printf("info = %x\n",info);
 //    printf("info.pid = %d\n",info->pid);
     return opt ? info->pid < pid : info->pid > pid;
 }
-static inline int insertPidInfoCallBack(struct pidinfo *info1,struct pidinfo *info2,int opt)
+static inline int insertPidInfoCallBack(PidInfo *info1,PidInfo *info2,int opt)
 {
 //    printf("info1 = %x\tinfo1.pid = %d\n",info1,info1->pid);
 //    printf("info2 = %x\tinfo2.pid = %d\n",info2,info2->pid);
     return opt ? info1->pid > info2->pid : info1->pid < info2->pid;
 }
-static inline void clearPidInfoCallBack(struct pidinfo *info){free(info); info = NULL;}
+static inline void clearPidInfoCallBack(PidInfo *info){free(info); info = NULL;}
 
-struct pidinfo* pidSearch(struct rb_root *tree,pid_t pid);      // 查询
-int pidInsert(struct rb_root *tree,struct pidinfo *data);       // 插入
-int pidDelete(struct rb_root *tree,pid_t pid);                  // 插入
+PidInfo* pidSearch(struct rb_root *tree,pid_t pid);      // 查询
+int pidInsert(struct rb_root *tree,PidInfo *data);       // 插入
+int pidDelete(struct rb_root *tree,pid_t pid);                  // 删除
 void pidClear(struct rb_root *tree);                            // 清空
 int64_t pidTreeSize(struct rb_root *tree);
-struct pidinfo* createPidInfo(pid_t pid,pid_t gpid,pid_t ppid); // 创建新的pidinfo
+PidInfo* createPidInfo(pid_t pid,pid_t gpid,pid_t ppid); // 创建新的pidinfo
+
+void resetItNode();
+struct rb_node* iterateNode(struct rb_root *tree);
+PidInfo* getStruct(struct rb_node* node);

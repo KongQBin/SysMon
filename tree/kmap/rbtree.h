@@ -186,4 +186,19 @@ static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
 
 	*rb_link = node;
 }
+
+extern struct rb_node *itNode;
+static inline void resetItNode(){itNode = NULL;}
+static inline struct rb_node* iterateNode(struct rb_root *tree)
+{
+    if(itNode)
+        itNode = rb_next(itNode);
+    else
+        itNode = rb_first(tree);
+    return itNode;
+}
+#define FOR_TREE(node,tree) \
+resetItNode(); \
+for(struct rb_node *node = iterateNode(&tree);node;node =iterateNode(&tree))
+
 #endif	/* _LINUX_RBTREE_H */

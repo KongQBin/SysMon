@@ -8,7 +8,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/fcntl.h>
-#include "cbtree.h"
+#include <stdlib.h>
+//#include "cbtree.h"
 #include "general.h"
 #include "testfunc.h"
 
@@ -25,7 +26,7 @@
 #define ARGV_5(regs) regs[g_regsOffset.argv5]
 #define ARGV_6(regs) regs[g_regsOffset.argv6]
 
-struct regs_offset
+typedef struct _RegsOffet
 {
     int ret;        //返回值
     int call;       //系统调用号
@@ -35,13 +36,9 @@ struct regs_offset
     int argv4;      //参数四
     int argv5;      //参数五
     int argv6;      //参数六
-};
-extern struct regs_offset g_regsOffset;
-int initRegsOffset_f();
-int insertCallbackTree(struct rb_root *tree,long id,void *cbf,void *cef);     // 初始化系统调用回调树
-struct syscall* searchCallbackTree(struct rb_root *tree,long id);
-int unInit(struct rb_root *tree);
-
+} RegsOffet;
+extern RegsOffet g_regsOffset;
+int initRegsOffset();
 
 /* X64 LINUX 6.3.1 REGS
  * struct user_regs_struct

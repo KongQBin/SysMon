@@ -57,7 +57,7 @@ int getRegsStrArg(pid_t pid, long arg, char **str, size_t *len)
     return ret;
 }
 
-int getRealPath(struct pidinfo *info, char **str, size_t *len)
+int getRealPath(PidInfo *info, char **str, size_t *len)
 {
     int ret = 0;
     char *tmp = NULL;

@@ -22,6 +22,7 @@ static int softwareFilter(const char *procname)
         {
             gRealPath.pathlen = 0;
             DERR(calloc);
+            skip = 1;
             return skip;
         }
     }
@@ -81,11 +82,16 @@ static int softwareFilter(const char *procname)
                 break;
             }
         }
+//        if(strstr(gRealPath.realpath,"gnome"))
+//        {
+//            skip = 1;
+//            break;
+//        }
     }while(0);
     return skip;
 }
 
-// 过滤进程组
+// 过滤进程组，也就是/proc目录下的进程
 static int filterGPid(const struct dirent *dir)
 {
     int need = 0;
@@ -98,11 +104,16 @@ static int filterGPid(const struct dirent *dir)
         gpid = strtoll(dir->d_name,&strend,10);
         if(dir->d_name != strend && (gpid == getpid()))     break;  // 转换成功但pid等于自身
 
-
+//        // 临时测试
         if(dir->d_name != strend)
         {
-            if(gpid != 46565)        break;  // 临时测试
+            if(gpid == 3221)        break;
+            if(gpid == 1)
+            {
+                DMSG(ML_WARN,"pid = = = 1");
+            }
         }
+
         need = 1;
     }while(0);
     return need;
@@ -219,7 +230,7 @@ int iterateSysThreads(pid_t **pids)
                             break;  // skip while
                         }
                         // 初始化新内存区域
-                        memset(tmpids+pidscount*sizeof(pid_t),0,pidscount*sizeof(pid_t));
+                        memset(tmpids+pidscount,0,pidscount*sizeof(pid_t));
                         // 移交内存所有权
                         pidscount += pidscount;
                         *pids = tmpids;

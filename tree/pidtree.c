@@ -2,17 +2,17 @@
 #include <errno.h>
 #include <string.h>
 
-struct pidinfo *pidSearch(struct rb_root *tree, pid_t id)
+PidInfo *pidSearch(struct rb_root *tree, pid_t id)
 {
 //    DMSG(ML_INFO,"pidSearch pid tree id = %d\n",id);
     if(!tree) return NULL;
-    struct pidinfo *data = NULL;
+    PidInfo *data = NULL;
 //    rbSearch(tree,searchPidInfoCallBack,id,data);
 
 
     struct rb_node *mnode = tree->rb_node;
     data = NULL;
-    struct pidinfo * tmp = NULL;
+    PidInfo * tmp = NULL;
     while (mnode)
     {
         tmp = container_of(mnode, typeof(*data), node);
@@ -28,7 +28,6 @@ struct pidinfo *pidSearch(struct rb_root *tree, pid_t id)
             break;
         }
     }
-
     return data;
 }
 
@@ -37,25 +36,25 @@ int pidDelete(struct rb_root *tree, pid_t id)
 //    DMSG(ML_ERR,"pidDelete\n");
 //    printf("pidDelete\n");
     if(!tree) return -1;
-    struct pidinfo *info = pidSearch(tree,id);
+    PidInfo *info = pidSearch(tree,id);
     if(!info) return -2;
     rb_erase(&info->node, tree);
     free(info);
     info = NULL;
-    DMSG(ML_INFO,"Delete pid tree data->pid = %d\n",id);
+//    DMSG(ML_INFO,"Delete pid tree data->pid = %d\n",id);
     return 0;
 }
 
-int pidInsert(struct rb_root *tree, struct pidinfo *data)
+int pidInsert(struct rb_root *tree, PidInfo *data)
 {
     if(!tree || !data) return -1;
 
     // 检查若存就认为另一个相同pid的进程在上次退出时没被删除
-    struct pidinfo *tmp = pidSearch(tree,data->pid);
-    if(tmp) pidDelete(tree,data->pid);  // 直接删掉
+    PidInfo *tmp = pidSearch(tree,data->pid);
+    if(tmp) pidDelete(tree,data->pid);  // 直接删掉,后面重新插入
 
     int ret = 0;
-    DMSG(ML_INFO,"Insert pid tree data->pid = %d\n",data->pid);
+//    DMSG(ML_INFO,"Insert pid tree data->pid = %d\n",data->pid);
     rbInsert(tree,insertPidInfoCallBack,data,ret);
 
 
@@ -65,7 +64,7 @@ int pidInsert(struct rb_root *tree, struct pidinfo *data)
     /* Figure out where to put new_node node */
     while (*new_node)
     {
-        typeof(data) this_node = container_of(*new_node, struct pidinfo, node);
+        typeof(data) this_node = container_of(*new_node, PidInfo, node);
         parent = *new_node;
         if(data->pid < this_node->pid)
             new_node = &((*new_node)->rb_left);
@@ -92,12 +91,12 @@ int pidInsert(struct rb_root *tree, struct pidinfo *data)
 void pidClear(struct rb_root *tree)
 {
     if(!tree) return;
-    rbClear(tree,struct pidinfo,clearPidInfoCallBack);
+    rbClear(tree,PidInfo,clearPidInfoCallBack);
 }
 
-struct pidinfo *createPidInfo(pid_t pid, pid_t gpid, pid_t ppid)
+PidInfo *createPidInfo(pid_t pid, pid_t gpid, pid_t ppid)
 {
-    struct pidinfo *info = calloc(1,sizeof(struct pidinfo));
+    PidInfo *info = calloc(1,sizeof(PidInfo));
     if(info)
     {
         info->pid = pid;
@@ -111,15 +110,13 @@ struct pidinfo *createPidInfo(pid_t pid, pid_t gpid, pid_t ppid)
     return info;
 }
 
+PidInfo* getStruct(struct rb_node* node)
+{
+    return container_of(node, PidInfo, node);
+}
 int64_t pidTreeSize(struct rb_root *tree)
 {
     int64_t size = 0;
-    while (1)
-    {
-        struct rb_node *node = NULL;
-        node = rb_first(tree);
-        if(!node) break;
-        ++node;
-    }
+    for(struct rb_node *node = rb_first(tree); node; node = rb_next(node)) ++size;
     return size;
 }

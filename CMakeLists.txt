@@ -2,27 +2,29 @@ project(SysMon)
 cmake_minimum_required(VERSION 2.9)
 include_directories(
     ./
+    ./init
+    ./general
     ./tree
     ./tree/kmap
     ./callbacks
     ./callbacks/comm
-    ./general
-    ./init
     ./kernel
-    /usr/include
-    /usr/local/include
+    ./kernel/monitorprocs
+    ./kernel/managethreads
     )
 
 FILE(GLOB SYSMON_LIST
     "docs/*.h"
     "*.c" "*.h"
     "init/*.c" "init/*.h"
+    "general/*.c" "general/*.h"
     "tree/*.c" "tree/*.h"
     "tree/kmap/*.c" "tree/kmap/*.h"
     "callbacks/*.c" "callbacks/*.h"
     "callbacks/comm/*.c" "callbacks/comm/*.h"
-    "general/*.c" "general/*.h"
     "kernel/*.c" "kernel/*.h"
+    "kernel/monitorprocs/*.c" "kernel/monitorprocs/*.h"
+    "kernel/managethreads/*.c" "kernel/managethreads/*.h"
 )
 #list(REMOVE_ITEM SYSMON_LIST "${CMAKE_CURRENT_SOURCE_DIR}/main.c")
 FILE(GLOB TEST_LIST

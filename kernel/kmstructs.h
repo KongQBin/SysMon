@@ -17,14 +17,14 @@ typedef struct _InitInfo
 typedef enum _ManageType
 {
     MT_Start = 10000,
-    MT_Init  = 10001,
-    MT_AddPid = 10002,       // 新增对进程组的监控
-    MT_AddTid = 10003,       // 新增对进(线)程的监控
-    MT_DelPid = 10004,       // 取消对进程组的监控
-    MT_DelTid = 10005,       // 取消对进(线)程的监控
-    MT_CallPass,            // 放过某个调用
-    MT_CallDos,             // 拒绝某个调用
-    MT_ToExit,              // 退出监控
+    MT_Init,
+    MT_AddPid,               // 新增对进程组的监控
+    MT_AddTid,               // 新增对进(线)程的监控
+    MT_DelPid,               // 取消对进程组的监控
+    MT_DelTid,               // 取消对进(线)程的监控
+    MT_CallPass,             // 放过某个调用
+    MT_CallDos,              // 拒绝某个调用
+    MT_ToExit,               // 退出监控
     MT_End,
 } ManageType;
 typedef struct _ManageInfo

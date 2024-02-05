@@ -5,7 +5,7 @@
 #include <sys/sysctl.h>
 #include "defunc.h"
 #include "testfunc.h"
-#include "workprocess.h"
+#include "procmain.h"
 #include "managethread.h"
 #include "iteratesys.h"
 //#include "pidtree.h"
@@ -13,9 +13,15 @@
 //#include "callbacks.h"
 //#include "controlinfo.h"
 
+
+typedef enum _MonProcType
+{
+    MPT_Exit,
+} MonProcType;
+
 typedef struct _MonProc
 {
-
+    MonProcType type;
 } MonProc;
 
 typedef enum _OutsideType
@@ -44,4 +50,3 @@ typedef struct _MainData
 } MData;
 
 int StartSystemMonitor();
-int startSysmon(ControlInfo *info);

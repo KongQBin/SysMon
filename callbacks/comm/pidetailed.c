@@ -16,28 +16,28 @@ int mreadlink(char *originPath, char **targetPath, size_t *len)
     return 0;
 }
 
-int getCwd(struct pidinfo *info,char **cwd, size_t *len)
+int getCwd(PidInfo *info,char **cwd, size_t *len)
 {
     char cwdPath[64] = { 0 };
     sprintf(cwdPath,"/proc/%llu/task/%llu/cwd",info->gpid,info->pid);
     return mreadlink(cwdPath,cwd,len);
 }
 
-int getExe(struct pidinfo *info,char **exe, size_t *len)
+int getExe(PidInfo *info,char **exe, size_t *len)
 {
     char exePath[64] = { 0 };
     sprintf(exePath,"/proc/%llu/exe",info->gpid);
     return mreadlink(exePath,exe,len);
 }
 
-int getFdPath(struct pidinfo *info,long fd, char **path, size_t *len)
+int getFdPath(PidInfo *info,long fd, char **path, size_t *len)
 {
     char fdPath[128] = { 0 };
     sprintf(fdPath,"/proc/%llu/task/%llu/fd/%d",info->gpid,info->pid,fd);
     return mreadlink(fdPath,path,len);
 }
 
-int getFdOpenFlag(struct pidinfo *info,long fd, int *flag)
+int getFdOpenFlag(PidInfo *info,long fd, int *flag)
 {
     int ret = 0;
     char *tmp = NULL;

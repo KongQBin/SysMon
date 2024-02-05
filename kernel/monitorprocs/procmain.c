@@ -1,61 +1,27 @@
-#include "workprocess.h"
-static ControlInfo *info;
-static int ptraceAttach(pid_t pid)
-{
-    int ret = 0;
-    do
-    {
-        if(ptrace(PTRACE_ATTACH, pid, 0, 0) < 0)
-        {
-            DMSG(ML_WARN_2,"PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
-            if(errno == 3)  continue;
-            if(errno != 1)  ret = -1;
-        }
-    }while(0);
-    return ret;
-}
+#include "procmain.h"
 
-// 用来处理来自‘控制线程’的任务
-static void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
-{
-    do{
-        if(!info)   break;
-        switch (minfo->type) {
-        case MT_Init:
-            memcpy(&info->binfo,cbinfo,sizeof(ControlBaseInfo));
-            break;
-        case MT_AddTid:
-            DMSG(ML_INFO,"MT_AddTid : %llu\n",minfo->tpid);
-            if(!ptraceAttach(minfo->tpid))
-                pidInsert(&info->ptree,createPidInfo(minfo->tpid,0,0));
-            break;
-        default:
-            break;
-        }
-    }while(0);
-}
-
+extern int globalexit;
 static int initControlInfoCallBackInfo()
 {
     // 设置监控到关注的系统调用，在其执行前后的调用函数
-    SETFUNC(info,ID_WRITE,cbWrite,ceWrite);
+    SETFUNC(gDefaultControlInfo,ID_WRITE,cbWrite,ceWrite);
     //    SETFUNC(info,ID_FORK,cbFork,ceFork);
     //    SETFUNC(info,ID_CLONE,cbClone,ceClone);
     //    SETFUNC(info,ID_EXECVE,cbExecve,ceExecve);
     //    SETFUNC(info,ID_CLOSE,cbClose,ceClose);
     //    SETFUNC(info,ID_OPENAT,cbOpenat,ceOpenat);
-    info->ptree.rb_node = NULL;
-    info->ftree.rb_node = NULL;
-    info->dtree.rb_node = NULL;
+    gDefaultControlInfo->ptree.rb_node = NULL;
+    gDefaultControlInfo->ftree.rb_node = NULL;
+    gDefaultControlInfo->dtree.rb_node = NULL;
     // 设置阻塞模式
     //    SETBLOCK(info,ID_EXECVE);
     return 0;
 }
 
-static int ifContinue()
+static int ifNotContinue()
 {
     int ret = 0;
-    DMSG(ML_ERR,"pid = -1 errno = %d err = \n", errno, strerror(errno));
+    DMSG(ML_ERR,"pid = -1 errno = %d err = %s\n", errno, strerror(errno));
     switch (errno)
     {
     case ECHILD:    // 没有被追踪的进程了，退出循环
@@ -80,21 +46,21 @@ static void getProcId(int evtType,pid_t pid,int status,ControlInfo *info)
     {
 //        dmsg("Child process created: %d status = %d\n", spid, status);
         if(spid <= 0 ) return;
-        struct pidinfo *tinfo = pidSearch(&info->ptree,pid);
-        if(!tinfo)
+        PidInfo *pinfo = pidSearch(&info->ptree,pid);
+        if(!pinfo)
         {
 //            dmsg("Unknown parent process\n");
             return;
         }
         switch (evtType) {
         case PTRACE_EVENT_FORK: // 进程组
-            pidInsert(&info->ptree,createPidInfo(spid,spid,tinfo->gpid));
+            pidInsert(&info->ptree,createPidInfo(spid,spid,pinfo->gpid));
             break;
         case PTRACE_EVENT_VFORK: // 虚拟进程
-            pidInsert(&info->ptree,createPidInfo(spid,spid,tinfo->gpid));
+            pidInsert(&info->ptree,createPidInfo(spid,spid,pinfo->gpid));
             break;
         case PTRACE_EVENT_CLONE: // 进程
-            pidInsert(&info->ptree,createPidInfo(spid,tinfo->gpid,tinfo->ppid));
+            pidInsert(&info->ptree,createPidInfo(spid,pinfo->gpid,pinfo->ppid));
             break;
         default:
             break;
@@ -164,26 +130,39 @@ static int getRelationalPid(const pid_t* pid, pid_t *gpid, pid_t *ppid)
     return ret;
 }
 
-typedef enum _WMRET
-{
-    WM_SUCC = 0,                     //处理成功
-    WM_TARGET_PROCESS_EXIT = 1,      //进程退出
-    WM_REGS_READ_ERROR = 2,          //寄存器读取失败
-    WM_CALL_UNREASONABLE,
-    WM_CALL_NOT_FOUND,           //容器中不存在对该调用的处理
-    WM_IS_EVENT,                 //事件处理结束
-    WM_IS_SIGNAL,                //信号处理结束
-    WM_TO_BLOCK,                 //阻塞该系统调用
-} WMRET;
-
-
+#define TRAP_SIG (SIGTRAP|0x80)
 static CbArgvs av;
-WMRET workMain(pid_t *pid, int *status)
+void onProcessTask(pid_t *pid, int *status)
 {
-//    DMSG(ML_INFO,"pid is %llu status = %d\n",*pid,*status);
-    /*注意这两个宏函数存在return的情况*/
-    MANAGE_SIGNAL(*pid,*status,info);   /*信号处理*/
-    MANAGE_EVENT(*pid,*status,info);    /*事件处理*/
+    TASKTYPE tasktype = TT_SUCC;
+    PidInfo *pinfo = pidSearch(&gDefaultControlInfo->ptree,*pid);
+    if(!pinfo)
+    {
+        pid_t gpid = 0, ppid = 0;
+        if(!getRelationalPid(pid,&gpid,&ppid))
+        {
+            if(pinfo = createPidInfo(*pid,gpid,ppid))
+                pidInsert(&gDefaultControlInfo->ptree,pinfo);
+            else
+                DMSG(ML_ERR,"%llu createPidInfo fail\n",*pid);
+        }
+        else
+            DMSG(ML_ERR,"%llu getRelationalPid fail\n",*pid);
+    }
+
+    // 证明未查询到且创建失败
+    // 为了不干扰目标进程正常运行，取消对它的追踪
+    if(!pinfo || globalexit)
+        GO_END(TT_TARGET_PROCESS_EXIT);
+    pinfo->status = *status;
+    // 分析是信号还是事件
+    sigEvt(pinfo,&tasktype);
+    // 如果不是系统调用，那么就跳转到END
+    if(tasktype != TT_IS_SYSCALL) GO_END(tasktype);
+    // 如果是系统调用，那么进行以下处理流程
+
+    //    MANAGE_SIGNAL(*pid,*status,gDefaultControlInfo);   /*信号处理*/
+    //    MANAGE_EVENT(*pid,*status,gDefaultControlInfo);    /*事件处理*/
 
     struct user user;
     long *regs = (long*)&user.regs;
@@ -191,44 +170,57 @@ WMRET workMain(pid_t *pid, int *status)
     if(ptrace(PTRACE_GETREGS, *pid, 0, regs) < 0)
     {
         DMSG(ML_ERR,"PTRACE_GETREGS: %s(%d) %llu\n", strerror(errno),errno,*pid);
-        return WM_REGS_READ_ERROR;
+        GO_END(TT_REGS_READ_ERROR);
     }
 
-//    if(CALL(regs) < 0) return WM_SUCC;  // 系统调用号存在等于-1的情况,原因未详细调查
     int callid = nDoS(CALL(regs));
     if(callid < 0 || callid >= CALL_MAX)    // 判断系统调用号在一个合理范围
-        return WM_CALL_UNREASONABLE;
-    if(callid == ID_EXIT_GROUP)             // 进程退出
-        return WM_TARGET_PROCESS_EXIT;
+        GO_END(TT_CALL_UNREASONABLE);
+//    if(callid == ID_EXIT_GROUP)             // 进程退出
+//        GO_END(TT_TARGET_PROCESS_EXIT);
+
     // 指针数组作为bloom使用，判断是否关注该系统调用
-    if(IS_BEGIN(regs) ? !info->cbf[callid] : !info->cef[callid])
-        return WM_CALL_NOT_FOUND;
+    if(IS_BEGIN(regs) ? !gDefaultControlInfo->cbf[callid] : !gDefaultControlInfo->cef[callid])
+        GO_END(TT_CALL_NOT_FOUND);
+
 //    DMSG(ML_INFO,"From *pid %d\tHit Call %d\n",*pid,callid);
-    struct pidinfo *tinfo = pidSearch(&info->ptree,*pid);
-    if(!tinfo)
+//    PidInfo *pinfo = pidSearch(&gDefaultControlInfo->ptree,*pid);
+    if(!pinfo)
     {
         pid_t gpid = 0, ppid = 0;
         if(!getRelationalPid(pid,&gpid,&ppid))
         {
-            if(tinfo = createPidInfo(*pid,gpid,ppid))
-                pidInsert(&info->ptree,tinfo);
+            if(pinfo = createPidInfo(*pid,gpid,ppid))
+                pidInsert(&gDefaultControlInfo->ptree,pinfo);
         }
     }
-    if(tinfo)
+    if(pinfo)
     {
+        // 判断是否已经setoptions了
+        if(!IS_SETOPT(pinfo->flags))
+        {
+//            DMSG(ML_WARN,"Current *pid %d PTRACE_SETOPTIONS\n",*pid);
+            if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN) < 0)
+            {
+                DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
+            }
+            else
+                SET_SETOPT(pinfo->flags);
+        }
+
         memset(&av,0,sizeof(CbArgvs));
 //        av.block = ISBLOCK(info,callid);
-        av.info = tinfo;
-        av.cinfo = info;
+        av.info = pinfo;
+        av.cinfo = gDefaultControlInfo;
         av.cctext.regs = regs;
 //        av.task = task;
 //        av.td = td;
-        IS_BEGIN(regs) ? info->cbf[callid](&av): info->cef[callid](&av);
+        IS_BEGIN(regs) ? gDefaultControlInfo->cbf[callid](&av): gDefaultControlInfo->cef[callid](&av);
     }
     else
     {
         /*
-         * tinfo = NULL 这种情况出现的场景可能是：
+         * pinfo = NULL 这种情况出现的场景可能是：
          * 一：
          * 上述代码既没有查询到info，又在创建info时失败了
          * 二：
@@ -238,34 +230,31 @@ WMRET workMain(pid_t *pid, int *status)
          */
         DMSG(ML_WARN,"Current *pid %d is not in ptree\n",*pid);
     }
-    return WM_SUCC;
-}
+    tasktype = TT_SUCC;
+END:
+//    DMSG(ML_WARN,"Task type = %d\n",tasktype);
 
-void onProcessTask(pid_t *pid, int *status)
-{
-    WMRET ret = workMain(pid,status);
-//    if(ret != WM_CALL_NOT_FOUND) DMSG(ML_INFO,"workMain ret: %d\n", ret);
-    switch (ret)
+    switch (tasktype)
     {
-    case WM_CALL_NOT_FOUND:
-    case WM_IS_EVENT:       //事件直接放行
-    case WM_SUCC:
-    case WM_TO_BLOCK:
-    case WM_REGS_READ_ERROR:
-    case WM_CALL_UNREASONABLE:
-        // 设置下次监控的类型
-        if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN) < 0)
-            DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
-        // 放行该任务(也可能是一个事件)
+    case TT_CALL_NOT_FOUND:
+    case TT_SUCC:
+    case TT_IS_EVENT:       //事件直接放行
+    case TT_TO_BLOCK:
+    case TT_REGS_READ_ERROR:
+    case TT_CALL_UNREASONABLE:
+//        // 设置下次监控的类型
+//        if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN) < 0)
+//            DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
+//         放行该任务(也可能是一个事件)
         if(ptrace(PTRACE_SYSCALL, *pid, 0, 0) < 0)
             DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
         break;
-    case WM_IS_SIGNAL:    //部分信号直接放行
+    case TT_IS_SIGNAL:    //部分信号直接放行
         // 继续该任务（信号）
-        if(ptrace(PTRACE_CONT, *pid, 0, *status) < 0)
+        if(ptrace(PTRACE_CONT, *pid, 0, pinfo->status) < 0)
             DMSG(ML_WARN,"PTRACE_CONT : %s(%d) *pid is %d\n",strerror(errno),errno,*pid);
         break;
-    case WM_TARGET_PROCESS_EXIT:
+    case TT_TARGET_PROCESS_EXIT:
         /*
          * 进程退出
          * 两种退出形式，一种是正常退出 系统调用号(callid) = ID_EXIT_GROUP
@@ -275,20 +264,35 @@ void onProcessTask(pid_t *pid, int *status)
         // DMSG(ML_INFO,"*pid : %d to exit!\n",*pid);
         if(ptrace(PTRACE_DETACH, *pid, 0, 0) < 0)
             DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
-        pidDelete(&info->ptree,*pid);
+        pidDelete(&gDefaultControlInfo->ptree,*pid);
         break;
     default:
-        DMSG(ML_WARN,"Unknown WMRET = %d\n",ret);
+        DMSG(ML_WARN,"Unknown TASKTYPE = %d\n",tasktype);
         break;
     }
 }
 
+extern int globalexit;
+static void sigOptions(int sig)
+{
+    if(sig == SIGINT || sig == SIGTERM)
+    {
+        ++ globalexit;  // 1 = 软退出 2 = 强制退出
+        if(globalexit == 2)
+        {
+            ManageInfo info;
+            info.type = MT_ToExit;
+            taskOpt(&info,NULL);
+        }
+    }
+}
 void MonProcMain(pid_t cpid)
 {
-    setpriority(PRIO_PROCESS, getpid(), -20);
+    signal(SIGINT,sigOptions);  // Ctrl + c
+    signal(SIGTERM,sigOptions); // kill -15
     do{
-        info = calloc(1,sizeof(ControlInfo));
-        if(!info)
+        gDefaultControlInfo = calloc(1,sizeof(ControlInfo));
+        if(!gDefaultControlInfo)
         {
             DMSG(ML_ERR,"calloc fail errcode is %d, err is %s\n",errno,strerror(errno));
             break;
@@ -297,7 +301,7 @@ void MonProcMain(pid_t cpid)
         initControlInfoCallBackInfo();
         // 开始监控
         if(!ptraceAttach(cpid))
-            pidInsert(&info->ptree,createPidInfo(cpid,0,0));
+            pidInsert(&gDefaultControlInfo->ptree,createPidInfo(cpid,0,0));
         // 设置回调
         setTaskOptFunc(taskOpt);
 
@@ -306,11 +310,12 @@ void MonProcMain(pid_t cpid)
         while(run)
         {
             status = 0;
-            npid = wait4(-1,&status,/*WNOHANG|*/WUNTRACED,0);
-            if(npid == -1)      ifContinue();                       // 判断是否应该进入下个循环
-            if(npid == cpid)    onControlThreadMsg(cpid,status);    // 这一般是来自主进程的控制信息
-            else                onProcessTask(&npid,&status);       // 响应被监控进程反馈的事件
+            npid = wait4(-1,&status,/*WNOHANG|WUNTRACED*/__WALL,0);
+            if(npid == -1 && ifNotContinue())   break;                              // 判断是否应该进入下个循环
+            if(npid == cpid)                    onControlThreadMsg(cpid,status);    // 这一般是来自主进程的控制信息
+            else                                onProcessTask(&npid,&status);       // 响应被监控进程反馈的事件
         }
     }while(0);
+    DMSG(ML_INFO,"MonProcMain to return\n")
     return ;
 }

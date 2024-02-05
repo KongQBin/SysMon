@@ -26,7 +26,6 @@ int getArg(pid_t *pid, long *originaddr, void **targetaddr, long *len)
     {
 //        for(int i=0;;++i)
 //        {
-
 //        }
     }
     return 0;
@@ -49,7 +48,7 @@ void onControlThreadMsg(pid_t pid, int status)
         switch (signal) {
         case SIGTERM:               /* kill -15 */
         case SIGINT:                /* 2 Ctrl + c */
-            if(ptrace(PTRACE_CONT, pid, 0, status) < 0)
+            if(ptrace(PTRACE_CONT, pid, 0, signal) < 0)
                 DMSG(ML_WARN,"PTRACE_CONT : %s(%d) pid is %d\n",strerror(errno),errno,pid);
             toBreak = 1;
             break;
@@ -146,7 +145,7 @@ int sendManageInfo(ManageInfo *info)
 // 因为‘监控进程’利用wait4在进行监控，如果利用信号去打断它的话
 // 担心有可能会丢失‘被监控进程’的事件，进而导致一些难以控制的问题
 // 故使用该线程以被追踪的方法来向‘监控进程’传递控制信息
-// 该线程内不要有过多的逻辑，保持逻辑简洁，以保证不会导致‘监控进程’误判
+// 该线程内不要有过多的逻辑，保持逻辑简洁，以保证不会被‘监控进程’误判
 #define SendMsg(wfd,addr,len)   write(wfd,addr,len);
 void* manageThreadFunc(void *val)
 {
@@ -189,14 +188,16 @@ pthread_t createManageThread(InitInfo *info)
     ret = pthread_attr_init(&attr);
     if(ret)
     {
-        DMSG(ML_ERR, "pthread_attr_init fail errcode is %d, err is %s\n", errno, strerror(errno));
+        DERR(pthread_attr_init);
+//        DMSG(ML_ERR, "pthread_attr_init fail errcode is %d, err is %s\n", errno, strerror(errno));
         exit(1);
     }
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     ret = pthread_create(&tid, &attr, manageThreadFunc, info);
     if(ret)
     {
-        DMSG(ML_ERR, "pthread_create fail errcode is %d, err is %s\n", errno, strerror(errno));
+        DERR(pthread_create);
+//        DMSG(ML_ERR, "pthread_create fail errcode is %d, err is %s\n", errno, strerror(errno));
         exit(1);
     }
     return tid;

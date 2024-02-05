@@ -1,37 +1,8 @@
 #include "sysmon.h"
-
-struct rb_root *cbTree = NULL;
-pid_t contpid = 0;
-
-struct threadArgs
-{
-    pid_t pid;
-    struct rb_root *cbTree;
-};
-
-void MonProcDataOption(MonProc *mpdata)
-{
-
-}
-void OutsideDataOption(Outside *odata)
-{
-    switch (odata->type) {
-    case OT_AdmMon:
-        sendManageInfo(&odata->info);
-        break;
-    case OT_AdmMain:
-        break;
-    default:
-        break;
-    }
-}
-
-
-int gProcNum;
+int gProcNum;                   // 用于进行系统监控的进程总数
 int gPipeToMain[2];             // 用于给主进程进行通讯的管道
 int gPipeFromMain[2];           // 用于从主进程获取信息的管道
 InitInfo gInitInfo[PROC_MAX];   // 用于保存最初的初始化信息
-
 int iterateAllThreadsToProcs()
 {
     pid_t *pids = NULL;
@@ -69,7 +40,7 @@ int printMsg(struct CbMsg *info);
 int StartSystemMonitor()
 {
     // 初始化寄存器偏移
-    initRegsOffset_f();
+    initRegsOffset();
     // 初始化主进程进出消息的管道
     pipe(gPipeToMain);
     pipe(gPipeFromMain);
@@ -82,7 +53,7 @@ int StartSystemMonitor()
 
     // 定义'控制线程'所使用的匿名管道
     memset(&gInitInfo,0,sizeof(gInitInfo));
-    // 根据核心数量创建‘监控进程’
+    // 创建‘监控进程’，并对gInitInfo初始化
     for(int i=0; i<gProcNum; ++i)
     {
         pipe(gInitInfo[i].cfd);
@@ -97,6 +68,12 @@ int StartSystemMonitor()
             // 设置回调函数
             PutMsg = printMsg;
             MonProcMain(gInitInfo[i].pid);
+
+            // 通知主进程，当前进程已经退出
+            MData data;
+            data.origin = MDO_MonProc;
+            data.monproc.type = MPT_Exit;
+            write(gDefaultControlInfo->binfo.tpfd[1],&data,sizeof(data));
             exit(0);
         }
         else if(pid < 0)
@@ -106,8 +83,7 @@ int StartSystemMonitor()
         }
         gInitInfo[i].spid = pid;
     }
-
-    sleep(1);
+    sleep(0);
     // 再一个循环，用来将ControlInfo传递给各‘监控进程’
     int wbufsize = sizeof(ManageInfo)+sizeof(ControlBaseInfo);
     char *wbuf = calloc(1,wbufsize*gProcNum);
@@ -130,26 +106,7 @@ int StartSystemMonitor()
     }
     free(wbuf);
     wbuf = NULL;
-
     // 遍历系统中所有的线程并对线程进行分配
     iterateAllThreadsToProcs();
-
-    MData data;
-    while(1)
-    {
-        memset(&data,0,sizeof(data));
-        read(gPipeToMain[0],&data,sizeof(data));
-        switch (data.origin) {
-        case MDO_MonProc:
-            MonProcDataOption(&data.monproc);
-            break;
-        case MDO_Outside:
-            OutsideDataOption(&data.outside);
-            break;
-        default:
-            DMSG(ML_ERR,"Unknown MData Origin is %d\n",data.origin);
-            break;
-        }
-    }
     return 0;
 }

@@ -29,27 +29,38 @@ case SIGTRAP:  /* kill -5 */\
 }\
 }
 
+#define GO_END(type) {\
+tasktype = type; \
+    goto END; \
+}
+
 #define MANAGE_SIGNAL(pid,status,info){\
-if(WIFSIGNALED(status))/*kill -9)*/\
+if(WIFSIGNALED(status))/*由信号导致退出或者正常退出*/\
 {\
     DMSG(ML_INFO,"WIFSIGNALED exit signal is %d\n",WTERMSIG(status));\
-    return WM_TARGET_PROCESS_EXIT;\
+    GO_END(TT_TARGET_PROCESS_EXIT);\
 }\
 int tmp = WSTOPSIG(status);\
 int signal = (tmp & 0x7F);\
-/*DMSG(ML_INFO,">>    signal is %d    <<\n",signal);*/\
+DMSG(ML_INFO,">>pid is %d    signal is %d    origin is %d    event is %d    <<\n",pid,signal,(tmp & 0x80)>>7,status>>16);\
 switch (signal) {\
 case 0:\
 case SIGTRAP:  /* kill -5 */\
 case SIGCHLD:  /* 17 子进程的退出或终止事件 */\
     break;\
+case SIGSTOP:  /* 19 */\
+if(pidSearch(&gDefaultControlInfo->ptree,pid)) \
+    break;\
+/* 以上信号如果传递下去，会导致监控出现异常，漏监控 */ \
+/* 以下信号如果不传递下去，会导致目标进程逻辑异常，当前进程也可能会出现问题 */ \
+case SIGSEGV:  /* sig 11 SIGSEGV 启动pycharm会一直触发，如果不传递下去，会导致死循环*/\
 case SIGTERM:  /* kill -15 */\
 case SIGINT:   /* 2 Ctrl + c */\
-case 31:       /*SIGUNUSED 用谷歌浏览器打开知乎必定触发该信号，如果不放行就会导致知乎页面卡死*/\
+case 31:       /*SIGUNUSED?SIGUSR2 用谷歌浏览器打开知乎必定触发该信号，如果不放行就会导致知乎页面卡死*/\
 /*default:*/\
     /*DMSG(ML_INFO,"pid is %llu status = %d tmp = %d signal = %d\n",pid,status,tmp,signal);*/\
     status = signal;\
-    return WM_IS_SIGNAL;\
+    GO_END(TT_IS_SIGNAL);\
 }\
 }
 
@@ -109,9 +120,8 @@ case PTRACE_EVENT_VFORK_DONE:/*虚拟进程运行结束*/\
 case PTRACE_EVENT_EXIT:/*进程结束*/\
 {\
     DMSG(ML_INFO_EVENT,"Event:\tPTRACE_EVENT_EXIT target pid is %d\n",pid);\
-/*    if (ptrace(PTRACE_CONT, pid, NULL, signal) < 0)\
-        dmsg("PTRACE_CONT : %s(%d) pid is %d\n", strerror(errno),errno,pid);\*/\
-    return WM_TARGET_PROCESS_EXIT;\
+    GO_END(TT_TARGET_PROCESS_EXIT);\
+    break;\
 }\
 case PTRACE_EVENT_STOP:/*进程暂停*/\
 {\
@@ -124,15 +134,6 @@ default:\
     break;\
 }\
 }\
-if(event) return WM_IS_EVENT;\
+if(event) GO_END(TT_IS_EVENT;)\
 }
-//  if(event)\
-    {\
-            if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)\
-        {\
-                DMSG(ML_INFO_EVENT,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,pid);\
-                if(errno == 3) return errno;   /*No such process*/\
-        }\
-            return AP_IS_EVENT;\
-    }\
 

@@ -1,10 +1,10 @@
 #include "init.h"
-struct regs_offset g_regsOffset;
+RegsOffet g_regsOffset;
 extern long DoS();
-extern int initRegsOffset_r();       // 初始化寄存器偏移
-int initRegsOffset_f()
+extern int getRegsOffset();       // 初始化寄存器偏移
+int initRegsOffset()
 {
-    int ret = initRegsOffset_r();
+    int ret = getRegsOffset();
     DMSG(ML_INFO,"current process id = %d\n",getpid());
     DMSG(ML_INFO,"initRegsOffset ret = %d\n",ret);
     DMSG(ML_INFO,"offset.call = %d\n",g_regsOffset.call);
@@ -15,31 +15,7 @@ int initRegsOffset_f()
     return ret;
 }
 
-int unInit(struct rb_root *tree)
-{
-    cbClear(tree);
-    return 0;
-}
-
-inline int insertCallbackTree(struct rb_root *tree,long id,void *cbf,void *cef)
-{
-    struct syscall *call = NULL;
-    call = calloc(1,sizeof(struct syscall));
-    if(!call) return -1;
-    call->id = id;
-    call->cbf = cbf;
-    call->cef = cef;
-    cbInsert(tree,call);
-    return 0;
-}
-
-inline struct syscall* searchCallbackTree(struct rb_root *tree,long id)
-{
-    // 查找系统调用（如果该系统调用被拒绝服务，那么查询时要还原回去）
-    return cbSearch(tree,~DoS() & id);
-}
-
-int initRegsOffset_r()
+int getRegsOffset()
 {
     int ret = -1;
     const char *msg = "test write";

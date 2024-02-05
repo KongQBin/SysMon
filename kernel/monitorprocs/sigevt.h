@@ -11,5 +11,11 @@
 #include "cbdefine.h"
 #include "callbacks.h"
 #include "managethread.h"
-#include "sys/resource.h"
-void MonProcMain(pid_t tid);
+#include <sys/resource.h>
+#include "pglobal.h"
+#include "taskopt.h"
+// 处理信号以及事件
+// 参数1：当前pid
+// 参数2：当前返回状态
+// 参数3：函数返回值
+void sigEvt(PidInfo *pinfo, TASKTYPE *type);

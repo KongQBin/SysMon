@@ -1,6 +1,7 @@
 #include "sysmon.h"
+#include "msgloop.h"
 
-int gmaintoexit = 0;
+int globalexit = 0;
 int printMsg(struct CbMsg *info)
 {
     enum MsgLevel level = ML_INFO;
@@ -41,22 +42,52 @@ int printMsg(struct CbMsg *info)
     return 0;
 }
 
-void sigOptions(int sig)
+extern int gProcNum;
+extern InitInfo gInitInfo[PROC_MAX];
+static void sigOptions(int sig)
 {
-    printf(" sig = %d\n",sig);
+    printf(" signal = %d\n",sig);
     if(sig == SIGINT || sig == SIGTERM)
     {
         DMSG(ML_WARN,"\n正在通知退出，请稍候...\n");
-        gmaintoexit = 1;
+//        // 遍历并通知各个子进程退出
+//        ManageInfo info;
+//        for(int i=0;i<gProcNum;++i)
+//        {
+//            memcpy(info.tpfd,gInitInfo[i].cfd,sizeof(info.tpfd));
+//            info.type = MT_ToExit;
+//            if(sendManageInfo(&info))
+//                DERR(sendManageInfo);
+//        }
     }
-    return;
 }
 
 int main(int argc, char** argv)
 {
+//    FILE *fp = NULL;
+//    char *filename = "output.log";
+
+//    fp = freopen(filename,"w+",stdout);       //标准输出重定向到文件output.log
+//    if (NULL == fp)
+//    {
+//        fprintf(stderr,"error redirecting stdout\n");
+//        return 0;
+//    }
+//    printf("Redirect stdout to %s\n", filename);
+
+    // 设置进程优先级
     setpriority(PRIO_PROCESS, getpid(), -20);
+    // 启动监控进程
+    StartSystemMonitor();
+    // 给主进程单独设置信号处理函数
     signal(SIGINT,sigOptions);  // Ctrl + c
     signal(SIGTERM,sigOptions); // kill -15
-    StartSystemMonitor();
-    return 0;
+    // 进入主进程消息循环
+    return MainMessageLoop();
 }
+
+////使free立即将内存返还给系统
+//#include <malloc.h>
+//int ret = mallopt(M_MXFAST, 0);
+//if (1 == ret) printf("mallopt set M_MXFAST = %d succeed\n", 0);
+//else printf("mallopt set M_MXFAST = %d failed, errno: %d, desc: %s\n", 0, errno, strerror(errno));

@@ -10,7 +10,6 @@ typedef struct _GlobalData
     int threadNumber;       // 线程数量
 } GlobalData;
 
-struct pidinfo;
 typedef struct _ControlInfo2
 {
     pid_t cpid;                                 // 当前进行监控的线程ID
