@@ -8,6 +8,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
             memcpy(&gDefaultControlInfo->binfo,cbinfo,sizeof(ControlBaseInfo));
             break;
         case MT_AddTid:
+//            DMSG(ML_INFO,"MT_AddTid %llu\n",minfo->tpid);
             if(!ptraceAttach(minfo->tpid))
                 pidInsert(&gDefaultControlInfo->ptree,createPidInfo(minfo->tpid,0,0));
             break;
@@ -25,7 +26,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
             FOR_TREE(node,gDefaultControlInfo->ptree)
             {
                 pid_t detachid = getStruct(node)->pid;
-                DMSG(ML_INFO,"detachid = %llu\n",detachid);
+//                DMSG(ML_INFO,"detachid = %llu\n",detachid);
                 // 先用正常手段解除监控
                 if(ptraceDetach(detachid,1))
                 {
@@ -65,7 +66,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
                                 if(!ptraceDetach(detachid))
                                 {
                                     syscall(__NR_tkill,detachid,SIGCONT);
-                                    DMSG(ML_WARN,"ptraceDetach success\n")
+                                    DMSG(ML_WARN,"Ptrace force detach %llu success... \n",detachid)
                                     pidDelete(&gDefaultControlInfo->ptree,detachid);
                                     resetItNode();
                                     break;

@@ -29,10 +29,7 @@ case SIGTRAP:  /* kill -5 */\
 }\
 }
 
-#define GO_END(type) {\
-tasktype = type; \
-    goto END; \
-}
+
 
 #define MANAGE_SIGNAL(pid,status,info){\
 if(WIFSIGNALED(status))/*由信号导致退出或者正常退出*/\

@@ -1,8 +1,10 @@
 #include "sysmon.h"
+int gSeize;                     // SEIZE模式与ATTACH模式
 int gProcNum;                   // 用于进行系统监控的进程总数
 int gPipeToMain[2];             // 用于给主进程进行通讯的管道
 int gPipeFromMain[2];           // 用于从主进程获取信息的管道
 InitInfo gInitInfo[PROC_MAX];   // 用于保存最初的初始化信息
+ControlInfo *gDefaultControlInfo;
 int iterateAllThreadsToProcs()
 {
     pid_t *pids = NULL;
@@ -20,14 +22,11 @@ int iterateAllThreadsToProcs()
         info.type = MT_AddTid;
         info.tpid = pids[i];
 
-        for(int j=0;j<gProcNum;++j)
-        {
-            if(gInitInfo[j].spid == info.tpid)
-            {
-                skip = 1;
-                break;
-            }
-        }
+        // 临时测试
+//        {
+//            if(info.tpid != 10509) skip = 1;
+//        }
+
         if(skip) continue;
         if(sendManageInfo(&info))
             DERR(sendManageInfo);
@@ -83,7 +82,7 @@ int StartSystemMonitor()
         }
         gInitInfo[i].spid = pid;
     }
-    sleep(0);
+    sleep(1);
     // 再一个循环，用来将ControlInfo传递给各‘监控进程’
     int wbufsize = sizeof(ManageInfo)+sizeof(ControlBaseInfo);
     char *wbuf = calloc(1,wbufsize*gProcNum);

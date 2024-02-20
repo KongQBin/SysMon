@@ -1,5 +1,16 @@
 #include "procmain.h"
 
+const char *WhiteList[] = {
+    "Xorg",                 // 图形界面绘制，调用巨量的写(write)函数
+    "SysMon",
+    "JYNZDFY",
+    "JYNGLTX",
+    "JYNGJCZ",
+    "filemonitor",
+    "ZyUpdate",
+    "ZyUDiskTray",
+};
+
 extern int globalexit;
 static int initControlInfoCallBackInfo()
 {
@@ -70,66 +81,24 @@ static void getProcId(int evtType,pid_t pid,int status,ControlInfo *info)
         dmsg("PTRACE_GETEVENTMSG : %s(%d) pid is %d\n", strerror(errno),errno,spid);
 }
 
-static int getRelationalPid(const pid_t* pid, pid_t *gpid, pid_t *ppid)
+// 检查是否在白名单中
+int checkWhite(PidInfo *pinfo)
 {
-    *gpid = 0;
-    *ppid = 0;
-    int ret = 0;
-    DIR *dir = opendir("/proc");
-    if(!dir) {DMSG(ML_WARN,"opendir : %s\n",strerror(errno)); return -1;}
-    struct dirent *entry;
-    char pidPath[64] = { 0 };
-    while(entry = readdir(dir))
-    {
-        if(entry->d_name[0] == '.') continue;
-        if(DT_DIR == entry->d_type)
+    // 初始化校验标识，证明被检查过了
+    SET_CHKWHITE(pinfo->flags);
+    // 路径为空或获取失败
+    if(!pinfo->exe && getExe(pinfo,&pinfo->exe,&pinfo->exelen) == -1)
+        return 1;
+    for(int i=0;i<sizeof(WhiteList)/sizeof(WhiteList[0]);++i)
+        if(strstr(pinfo->exe,WhiteList[i]))
         {
-            sprintf(pidPath,"/proc/%s/task/%llu",entry->d_name,*pid);
-            if(!access(pidPath,F_OK))
-            {
-                char *tmp = pidPath + strlen("/proc/");
-                char *tmpend = strstr(tmp,"/");
-                if(tmpend) tmpend[0] = '\0';
-                else {ret = -2; break;}
-
-                char *strend;
-                *gpid = strtoll(tmp,&strend,10);
-                if(strend == tmp) {*gpid = 0; ret = -3;}
-                else ret = 0;
-                tmpend[0] = '/';
-                break;
-            }
+            DMSG(ML_WARN,"%s in WhiteList\n",pinfo->exe);
+            return 1;
         }
-    }
-    closedir(dir);
-
-    if(!ret)
-    {
-        // 获取 父进程 ID
-        // 该过程并不修改ret的值
-        // 因为当前ppid可有可无
-        strcat(pidPath,"/status");
-        FILE *fp = fopen(pidPath,"r");
-        if(fp)
-        {
-            char buf[128] = {0};
-            while(fgets(buf,sizeof(buf)-1,fp))
-            {
-                char *tmp = strstr(buf,"PPid:");
-                if(!tmp) continue;
-                tmp += strlen("PPid:");
-                while(++tmp[0] == ' ');
-                char *strend;
-                *ppid = strtoll(tmp,&strend,10);
-                if(strend == tmp) {*ppid = 0;}
-                break;
-            }
-            fclose(fp);
-        }
-    }
-    return ret;
+    return 0;
 }
 
+#define GO_END(type) {tasktype = type; goto END;}
 #define TRAP_SIG (SIGTRAP|0x80)
 static CbArgvs av;
 void onProcessTask(pid_t *pid, int *status)
@@ -138,21 +107,17 @@ void onProcessTask(pid_t *pid, int *status)
     PidInfo *pinfo = pidSearch(&gDefaultControlInfo->ptree,*pid);
     if(!pinfo)
     {
-        pid_t gpid = 0, ppid = 0;
-        if(!getRelationalPid(pid,&gpid,&ppid))
-        {
-            if(pinfo = createPidInfo(*pid,gpid,ppid))
-                pidInsert(&gDefaultControlInfo->ptree,pinfo);
-            else
-                DMSG(ML_ERR,"%llu createPidInfo fail\n",*pid);
-        }
+        if(pinfo = createPidInfo(*pid,0,0))
+            pidInsert(&gDefaultControlInfo->ptree,pinfo);
         else
-            DMSG(ML_ERR,"%llu getRelationalPid fail\n",*pid);
+            DMSG(ML_ERR,"%llu createPidInfo fail\n",*pid);
     }
 
     // 证明未查询到且创建失败
     // 为了不干扰目标进程正常运行，取消对它的追踪
     if(!pinfo || globalexit)
+        GO_END(TT_TARGET_PROCESS_EXIT);
+    if(!CHKWHITED(pinfo->flags) && checkWhite(pinfo))
         GO_END(TT_TARGET_PROCESS_EXIT);
     pinfo->status = *status;
     // 分析是信号还是事件
@@ -184,15 +149,10 @@ void onProcessTask(pid_t *pid, int *status)
         GO_END(TT_CALL_NOT_FOUND);
 
 //    DMSG(ML_INFO,"From *pid %d\tHit Call %d\n",*pid,callid);
-//    PidInfo *pinfo = pidSearch(&gDefaultControlInfo->ptree,*pid);
     if(!pinfo)
     {
-        pid_t gpid = 0, ppid = 0;
-        if(!getRelationalPid(pid,&gpid,&ppid))
-        {
-            if(pinfo = createPidInfo(*pid,gpid,ppid))
-                pidInsert(&gDefaultControlInfo->ptree,pinfo);
-        }
+        if(pinfo = createPidInfo(*pid,0,0))
+            pidInsert(&gDefaultControlInfo->ptree,pinfo);
     }
     if(pinfo)
     {
@@ -278,7 +238,7 @@ static void sigOptions(int sig)
     if(sig == SIGINT || sig == SIGTERM)
     {
         ++ globalexit;  // 1 = 软退出 2 = 强制退出
-        if(globalexit == 2)
+        if(globalexit >= 2)
         {
             ManageInfo info;
             info.type = MT_ToExit;
@@ -306,9 +266,10 @@ void MonProcMain(pid_t cpid)
         setTaskOptFunc(taskOpt);
 
         pid_t npid;
-        int run=1,status;
-        while(run)
+        int status;
+        while(1)
         {
+            //
             status = 0;
             npid = wait4(-1,&status,/*WNOHANG|WUNTRACED*/__WALL,0);
             if(npid == -1 && ifNotContinue())   break;                              // 判断是否应该进入下个循环

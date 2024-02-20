@@ -1,5 +1,4 @@
 #include "iteratesys.h"
-
 typedef struct _RealPathInfo
 {
     char *realpath;
@@ -71,22 +70,6 @@ static int softwareFilter(const char *procname)
             skip = 1;
             break;
         }
-
-        // 过滤Xorg，因为但凡使用图形化就会刷新，也不监控
-        char *index = NULL;
-        if((index = strstr(gRealPath.realpath,"Xorg")) != NULL)
-        {
-            if((index + strlen("Xorg"))[0] == '\0')
-            {
-                skip = 1;
-                break;
-            }
-        }
-//        if(strstr(gRealPath.realpath,"gnome"))
-//        {
-//            skip = 1;
-//            break;
-//        }
     }while(0);
     return skip;
 }
@@ -102,18 +85,22 @@ static int filterGPid(const struct dirent *dir)
         if(dir->d_type != DT_DIR)                           break;  // 非目录
         if(softwareFilter(dir->d_name))                     break;  // 按照进程特征再次过滤
         gpid = strtoll(dir->d_name,&strend,10);
-        if(dir->d_name != strend && (gpid == getpid()))     break;  // 转换成功但pid等于自身
-
-//        // 临时测试
         if(dir->d_name != strend)
         {
-            if(gpid == 3221)        break;
-            if(gpid == 1)
+            // 过滤自身
+            if(gpid == getpid()) break;
+            // 过滤兄弟进程
+            int skip = 0;
+            for(int j=0;j<gProcNum;++j)
             {
-                DMSG(ML_WARN,"pid = = = 1");
+                if(gInitInfo[j].spid == gpid)
+                {
+                    skip = 1;
+                    break;
+                }
             }
+            if(skip) break;
         }
-
         need = 1;
     }while(0);
     return need;

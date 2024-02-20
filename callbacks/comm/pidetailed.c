@@ -2,7 +2,7 @@
 #define SYSMON_PATH_MAX 256
 int mreadlink(char *originPath, char **targetPath, size_t *len)
 {
-    size_t mlen = 0, olen = 0;
+    int mlen = 0, olen = 0;
     while(1)
     {
         *targetPath = calloc(1,mlen + SYSMON_PATH_MAX);
@@ -13,7 +13,7 @@ int mreadlink(char *originPath, char **targetPath, size_t *len)
         else free(*targetPath);
     }
     *len = mlen;
-    return 0;
+    return mlen;
 }
 
 int getCwd(PidInfo *info,char **cwd, size_t *len)

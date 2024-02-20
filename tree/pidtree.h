@@ -27,21 +27,26 @@ typedef struct _PidInfo
     pid_t pid;                  //进程ID
     pid_t gpid;                 //进程属于哪个进程组
     pid_t ppid;                 //进程的父进程组（目前只监控追踪之后确认的关系，之前的默认为0）
+    char *exe;                  //进程的可执行程序路径
+    size_t exelen;
 
     int64_t flags;                      //setopt、stop状态等
     struct _ControlInfo *cinfo;         //当要对这个进程进行独立管理时，该指针将指向新的内存，否则指向gDefaultControlInfo
 
     int status;         // 当前进程返回的状态
 } PidInfo;
-#define PID_STOP      0
-#define PID_SETOPT    1
+#define PID_STOP        0
+#define PID_SETOPT      1
+#define PID_CHKWHITE    2   // 已过白
 
 #define SET_STOP(flags)         (flags |= 1<<PID_STOP)
 #define SET_SETOPT(flags)       (flags |= 1<<PID_SETOPT)
+#define SET_CHKWHITE(flags)     (flags |= 1<<PID_CHKWHITE)
 #define UNSET_STOP(flags)       (flags &= ~(1<<PID_STOP))
 #define UNSET_SETOPT(flags)     (flags &= ~(1<<PID_SETOPT))
 #define IS_STOP(flags)          (flags & (1<<PID_STOP))
 #define IS_SETOPT(flags)        (flags & (1<<PID_SETOPT))
+#define CHKWHITED(flags)        (flags & (1<<PID_CHKWHITE))
 
 
 

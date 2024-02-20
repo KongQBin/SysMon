@@ -6,4 +6,5 @@
 #include "general.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include "pglobal.h"
 int iterateSysThreads(pid_t **pids);

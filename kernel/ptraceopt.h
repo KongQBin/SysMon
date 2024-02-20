@@ -7,7 +7,6 @@ typedef struct
 
 static inline int __ptraceAttach(ptraceargs *args)
 {
-
     if(ptrace(PTRACE_ATTACH, args->pid, 0, 0) < 0)
     {
         if(!args->slient) DMSG(ML_WARN_2,"PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,args->pid);
