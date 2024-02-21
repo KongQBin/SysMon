@@ -1,5 +1,5 @@
 #pragma once
-struct _ControlInfo;
+struct _ControlPolicy;
 struct _Interactive;
 struct _PidInfo;
 typedef struct _CallContext
@@ -10,7 +10,7 @@ typedef struct _CallContext
 typedef struct _CbArgvs
 {
     struct _PidInfo *info;          // 用来获取进程关系
-    struct _ControlInfo *cinfo;     // 存放控制信息
+    struct _ControlPolicy *cinfo;     // 存放控制信息
     CallContext cctext;             // 当前系统调用的上下文
 } CbArgvs;
 /*                  回调函数形参                  */

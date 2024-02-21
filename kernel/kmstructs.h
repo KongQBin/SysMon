@@ -46,13 +46,12 @@ typedef struct _ControlBaseInfo
     pid_t bpids[PROC_MAX];      // 兄弟进程的pid，用于忽略监控
     pid_t mainpid;              // 主进程pid
 } ControlBaseInfo;
-typedef struct _ControlInfo
+typedef struct _ControlPolicy
 {
     ControlBaseInfo binfo;                         // 启动时，由主进程初始化的基本信息
-    struct rb_root ptree;                          // 所监控的进程
     struct rb_root ftree;                          // 受保护的文件
     struct rb_root dtree;                          // 进程防护树
-    int64_t block[CALL_MAX/sizeof(void*)/8];         // 用来判断与bloom对应的系统调用是否需要阻塞
+    int64_t block[CALL_MAX/sizeof(void*)/8];       // 用来判断与bloom对应的系统调用是否需要阻塞
     // 用函数指针的形式以空间换时间，既可以调用，又可以作为布隆过滤器
     // long (*func)(pid_t,long *); 函数指针指向的函数
     long (*cbf[CALL_MAX])(CB_ARGVS_TYPE());        // call begin func     在执行系统调用前需要调用的函数   (4kb)
@@ -60,7 +59,7 @@ typedef struct _ControlInfo
 
     // tmp
     int toexit;
-} ControlInfo;
+} ControlPolicy;
 #define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/sizeof(void*)/8] |= 1 << CALLID%(sizeof(void*)*8);}
 #define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/sizeof(void*)/8] ^= 1 << CALLID%(sizeof(void*)*8);}
 #define ISBLOCK(ControlInfo,CALLID)               (ControlInfo->block[CALLID/sizeof(void*)/8] & 1 << CALLID%(sizeof(void*)*8))

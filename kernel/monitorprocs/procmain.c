@@ -15,15 +15,15 @@ extern int globalexit;
 static int initControlInfoCallBackInfo()
 {
     // 设置监控到关注的系统调用，在其执行前后的调用函数
-    SETFUNC(gDefaultControlInfo,ID_WRITE,cbWrite,ceWrite);
+    SETFUNC(gDefaultControlPolicy,ID_WRITE,cbWrite,ceWrite);
     //    SETFUNC(info,ID_FORK,cbFork,ceFork);
     //    SETFUNC(info,ID_CLONE,cbClone,ceClone);
     //    SETFUNC(info,ID_EXECVE,cbExecve,ceExecve);
     //    SETFUNC(info,ID_CLOSE,cbClose,ceClose);
     //    SETFUNC(info,ID_OPENAT,cbOpenat,ceOpenat);
-    gDefaultControlInfo->ptree.rb_node = NULL;
-    gDefaultControlInfo->ftree.rb_node = NULL;
-    gDefaultControlInfo->dtree.rb_node = NULL;
+    gPidTree.rb_node = NULL;
+    gDefaultControlPolicy->ftree.rb_node = NULL;
+    gDefaultControlPolicy->dtree.rb_node = NULL;
     // 设置阻塞模式
     //    SETBLOCK(info,ID_EXECVE);
     return 0;
@@ -48,7 +48,7 @@ static int ifNotContinue()
     return ret;
 }
 
-static void getProcId(int evtType,pid_t pid,int status,ControlInfo *info)
+static void getProcId(int evtType,pid_t pid,int status,ControlPolicy *info)
 {
     return;
     pid_t spid;
@@ -57,7 +57,7 @@ static void getProcId(int evtType,pid_t pid,int status,ControlInfo *info)
     {
 //        dmsg("Child process created: %d status = %d\n", spid, status);
         if(spid <= 0 ) return;
-        PidInfo *pinfo = pidSearch(&info->ptree,pid);
+        PidInfo *pinfo = pidSearch(&gPidTree,pid);
         if(!pinfo)
         {
 //            dmsg("Unknown parent process\n");
@@ -65,13 +65,13 @@ static void getProcId(int evtType,pid_t pid,int status,ControlInfo *info)
         }
         switch (evtType) {
         case PTRACE_EVENT_FORK: // 进程组
-            pidInsert(&info->ptree,createPidInfo(spid,spid,pinfo->gpid));
+            pidInsert(&gPidTree,createPidInfo(spid,spid,pinfo->gpid));
             break;
         case PTRACE_EVENT_VFORK: // 虚拟进程
-            pidInsert(&info->ptree,createPidInfo(spid,spid,pinfo->gpid));
+            pidInsert(&gPidTree,createPidInfo(spid,spid,pinfo->gpid));
             break;
         case PTRACE_EVENT_CLONE: // 进程
-            pidInsert(&info->ptree,createPidInfo(spid,pinfo->gpid,pinfo->ppid));
+            pidInsert(&gPidTree,createPidInfo(spid,pinfo->gpid,pinfo->ppid));
             break;
         default:
             break;
@@ -104,33 +104,39 @@ static CbArgvs av;
 void onProcessTask(pid_t *pid, int *status)
 {
     TASKTYPE tasktype = TT_SUCC;
-    PidInfo *pinfo = pidSearch(&gDefaultControlInfo->ptree,*pid);
+    PidInfo *pinfo = pidSearch(&gPidTree,*pid);
     if(!pinfo)
     {
         if(pinfo = createPidInfo(*pid,0,0))
-            pidInsert(&gDefaultControlInfo->ptree,pinfo);
+            pidInsert(&gPidTree,pinfo);
         else
             DMSG(ML_ERR,"%llu createPidInfo fail\n",*pid);
     }
+    if(!pinfo->cinfo) pinfo->cinfo = gDefaultControlPolicy;
+    gCurrentControlPolicy = pinfo->cinfo;
 
-    // 证明未查询到且创建失败
-    // 为了不干扰目标进程正常运行，取消对它的追踪
+    // 证明未查询到且创建/初始化失败 或 退出flag为真
     if(!pinfo || globalexit)
         GO_END(TT_TARGET_PROCESS_EXIT);
+    // 判断是否校验过静态白名单，如果没有则进行校验，校验为白，则取消对其的追踪
     if(!CHKWHITED(pinfo->flags) && checkWhite(pinfo))
         GO_END(TT_TARGET_PROCESS_EXIT);
+
     pinfo->status = *status;
     // 分析是信号还是事件
     sigEvt(pinfo,&tasktype);
     // 如果不是系统调用，那么就跳转到END
     if(tasktype != TT_IS_SYSCALL) GO_END(tasktype);
+
+    //    MANAGE_SIGNAL(*pid,*status,gCurrentControlInfo);   /*信号处理*/
+    //    MANAGE_EVENT(*pid,*status,gCurrentControlInfo);    /*事件处理*/
+
     // 如果是系统调用，那么进行以下处理流程
 
-    //    MANAGE_SIGNAL(*pid,*status,gDefaultControlInfo);   /*信号处理*/
-    //    MANAGE_EVENT(*pid,*status,gDefaultControlInfo);    /*事件处理*/
-
+    // 初始化寄存器地址
     struct user user;
     long *regs = (long*)&user.regs;
+
     // 获取寄存器
     if(ptrace(PTRACE_GETREGS, *pid, 0, regs) < 0)
     {
@@ -145,14 +151,14 @@ void onProcessTask(pid_t *pid, int *status)
 //        GO_END(TT_TARGET_PROCESS_EXIT);
 
     // 指针数组作为bloom使用，判断是否关注该系统调用
-    if(IS_BEGIN(regs) ? !gDefaultControlInfo->cbf[callid] : !gDefaultControlInfo->cef[callid])
+    if(IS_BEGIN(regs) ? !gCurrentControlPolicy->cbf[callid] : !gCurrentControlPolicy->cef[callid])
         GO_END(TT_CALL_NOT_FOUND);
 
 //    DMSG(ML_INFO,"From *pid %d\tHit Call %d\n",*pid,callid);
     if(!pinfo)
     {
         if(pinfo = createPidInfo(*pid,0,0))
-            pidInsert(&gDefaultControlInfo->ptree,pinfo);
+            pidInsert(&gPidTree,pinfo);
     }
     if(pinfo)
     {
@@ -171,11 +177,11 @@ void onProcessTask(pid_t *pid, int *status)
         memset(&av,0,sizeof(CbArgvs));
 //        av.block = ISBLOCK(info,callid);
         av.info = pinfo;
-        av.cinfo = gDefaultControlInfo;
+        av.cinfo = gCurrentControlPolicy;
         av.cctext.regs = regs;
 //        av.task = task;
 //        av.td = td;
-        IS_BEGIN(regs) ? gDefaultControlInfo->cbf[callid](&av): gDefaultControlInfo->cef[callid](&av);
+        IS_BEGIN(regs) ? gCurrentControlPolicy->cbf[callid](&av): gCurrentControlPolicy->cef[callid](&av);
     }
     else
     {
@@ -224,7 +230,7 @@ END:
         // DMSG(ML_INFO,"*pid : %d to exit!\n",*pid);
         if(ptrace(PTRACE_DETACH, *pid, 0, 0) < 0)
             DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
-        pidDelete(&gDefaultControlInfo->ptree,*pid);
+        pidDelete(&gPidTree,*pid);
         break;
     default:
         DMSG(ML_WARN,"Unknown TASKTYPE = %d\n",tasktype);
@@ -251,8 +257,8 @@ void MonProcMain(pid_t cpid)
     signal(SIGINT,sigOptions);  // Ctrl + c
     signal(SIGTERM,sigOptions); // kill -15
     do{
-        gDefaultControlInfo = calloc(1,sizeof(ControlInfo));
-        if(!gDefaultControlInfo)
+        gDefaultControlPolicy = calloc(1,sizeof(ControlPolicy));
+        if(!gDefaultControlPolicy)
         {
             DMSG(ML_ERR,"calloc fail errcode is %d, err is %s\n",errno,strerror(errno));
             break;
@@ -261,7 +267,7 @@ void MonProcMain(pid_t cpid)
         initControlInfoCallBackInfo();
         // 开始监控
         if(!ptraceAttach(cpid))
-            pidInsert(&gDefaultControlInfo->ptree,createPidInfo(cpid,0,0));
+            pidInsert(&gPidTree,createPidInfo(cpid,0,0));
         // 设置回调
         setTaskOptFunc(taskOpt);
 

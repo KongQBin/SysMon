@@ -1,10 +1,12 @@
 #include "sysmon.h"
-int gSeize;                     // SEIZE模式与ATTACH模式
-int gProcNum;                   // 用于进行系统监控的进程总数
-int gPipeToMain[2];             // 用于给主进程进行通讯的管道
-int gPipeFromMain[2];           // 用于从主进程获取信息的管道
-InitInfo gInitInfo[PROC_MAX];   // 用于保存最初的初始化信息
-ControlInfo *gDefaultControlInfo;
+int gSeize;                       // SEIZE模式与ATTACH模式
+int gProcNum;                     // 用于进行系统监控的进程总数
+int gPipeToMain[2];               // 用于给主进程进行通讯的管道
+int gPipeFromMain[2];             // 用于从主进程获取信息的管道
+struct rb_root gPidTree;          // 所监控的进程
+InitInfo gInitInfo[PROC_MAX];     // 用于保存最初的初始化信息
+ControlPolicy *gDefaultControlPolicy; // 全局默认控制策略
+ControlPolicy *gCurrentControlPolicy; // 正在使用的控制策略（有时指向gDefaultControlInfo，有时指向进程自定义控制策略）
 int iterateAllThreadsToProcs()
 {
     pid_t *pids = NULL;
@@ -23,9 +25,9 @@ int iterateAllThreadsToProcs()
         info.tpid = pids[i];
 
         // 临时测试
-//        {
-//            if(info.tpid != 10509) skip = 1;
-//        }
+        {
+            if(info.tpid != 3007) skip = 1;
+        }
 
         if(skip) continue;
         if(sendManageInfo(&info))
@@ -72,7 +74,7 @@ int StartSystemMonitor()
             MData data;
             data.origin = MDO_MonProc;
             data.monproc.type = MPT_Exit;
-            write(gDefaultControlInfo->binfo.tpfd[1],&data,sizeof(data));
+            write(gDefaultControlPolicy->binfo.tpfd[1],&data,sizeof(data));
             exit(0);
         }
         else if(pid < 0)
@@ -83,7 +85,7 @@ int StartSystemMonitor()
         gInitInfo[i].spid = pid;
     }
     sleep(1);
-    // 再一个循环，用来将ControlInfo传递给各‘监控进程’
+    // 再一个循环，用来将ControlBaseInfo传递给各‘监控进程’
     int wbufsize = sizeof(ManageInfo)+sizeof(ControlBaseInfo);
     char *wbuf = calloc(1,wbufsize*gProcNum);
     for(int i=0;i<gProcNum;++i)

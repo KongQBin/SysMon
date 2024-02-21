@@ -2,19 +2,19 @@
 void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
 {
     do{
-        if(!gDefaultControlInfo)   break;
+        if(!gDefaultControlPolicy)   break;
         switch (minfo->type) {
         case MT_Init:
-            memcpy(&gDefaultControlInfo->binfo,cbinfo,sizeof(ControlBaseInfo));
+            memcpy(&gDefaultControlPolicy->binfo,cbinfo,sizeof(ControlBaseInfo));
             break;
         case MT_AddTid:
 //            DMSG(ML_INFO,"MT_AddTid %llu\n",minfo->tpid);
             if(!ptraceAttach(minfo->tpid))
-                pidInsert(&gDefaultControlInfo->ptree,createPidInfo(minfo->tpid,0,0));
+                pidInsert(&gPidTree,createPidInfo(minfo->tpid,0,0));
             break;
         case MT_ToExit:
         {
-            DMSG(ML_INFO,"MT_ToExit TreeSize = %llu\n",pidTreeSize(&gDefaultControlInfo->ptree));
+            DMSG(ML_INFO,"MT_ToExit TreeSize = %llu\n",pidTreeSize(&gPidTree));
 //            sleep(1);
 //            break;
             //            break;
@@ -23,7 +23,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
             // 此处由于是强制退出，期间要发送Stop信号向被监控的进程
             // 所以发送STOP信号后最好不要有任何打印信息，因为桌面进程也在其中，比如gnome
 
-            FOR_TREE(node,gDefaultControlInfo->ptree)
+            FOR_TREE(node,gPidTree)
             {
                 pid_t detachid = getStruct(node)->pid;
 //                DMSG(ML_INFO,"detachid = %llu\n",detachid);
@@ -34,7 +34,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
                     if(syscall(__NR_tkill,detachid,0) && errno == ESRCH)
                     {
                         // 进程不存在，删除这个进程
-                        pidDelete(&gDefaultControlInfo->ptree,detachid);
+                        pidDelete(&gPidTree,detachid);
                         resetItNode();
                         DERR(tkill);
                     }
@@ -67,7 +67,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
                                 {
                                     syscall(__NR_tkill,detachid,SIGCONT);
                                     DMSG(ML_WARN,"Ptrace force detach %llu success... \n",detachid)
-                                    pidDelete(&gDefaultControlInfo->ptree,detachid);
+                                    pidDelete(&gPidTree,detachid);
                                     resetItNode();
                                     break;
                                 }
@@ -77,12 +77,12 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
                 }
                 else
                 {
-                    pidDelete(&gDefaultControlInfo->ptree,detachid);
+                    pidDelete(&gPidTree,detachid);
                     resetItNode();
                 }
             }
             // 依然解除失败
-            FOR_TREE(node,gDefaultControlInfo->ptree)
+            FOR_TREE(node,gPidTree)
             {
                 pid_t detachid = getStruct(node)->pid;
                 DMSG(ML_ERR,"process %llu detach fail!\n",detachid)

@@ -42,8 +42,8 @@ int printMsg(struct CbMsg *info)
     return 0;
 }
 
-extern int gProcNum;
-extern InitInfo gInitInfo[PROC_MAX];
+//extern int gProcNum;
+//extern InitInfo gInitInfo[PROC_MAX];
 static void sigOptions(int sig)
 {
     printf(" signal = %d\n",sig);
@@ -75,7 +75,7 @@ int main(int argc, char** argv)
 //    }
 //    printf("Redirect stdout to %s\n", filename);
 
-    // 设置进程优先级
+    // 设置进程优先级 -20 是最高优先级
     setpriority(PRIO_PROCESS, getpid(), -20);
     // 启动监控进程
     StartSystemMonitor();
