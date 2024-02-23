@@ -8,7 +8,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
             memcpy(&gDefaultControlPolicy->binfo,cbinfo,sizeof(ControlBaseInfo));
             break;
         case MT_AddTid:
-//            DMSG(ML_INFO,"MT_AddTid %llu\n",minfo->tpid);
+            DMSG(ML_INFO,"MT_AddTid %llu\n",minfo->tpid);
             if(!ptraceAttach(minfo->tpid))
                 pidInsert(&gPidTree,createPidInfo(minfo->tpid,0,0));
             break;
@@ -28,10 +28,10 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
                 pid_t detachid = getStruct(node)->pid;
 //                DMSG(ML_INFO,"detachid = %llu\n",detachid);
                 // 先用正常手段解除监控
-                if(ptraceDetach(detachid,1))
+                if(ptraceDetach(detachid,0,1))
                 {
                     // 追踪解除失败,查看进程是否还存在
-                    if(syscall(__NR_tkill,detachid,0) && errno == ESRCH)
+                    if(tkill(detachid,0) && errno == ESRCH)
                     {
                         // 进程不存在，删除这个进程
                         pidDelete(&gPidTree,detachid);
@@ -40,36 +40,52 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
                     }
                     else
                     {
-                        // 进程存在，发送SIGSTOP
-                        if(syscall(__NR_tkill,detachid,SIGSTOP))
-                        //                        if(ptrace(PTRACE_INTERRUPT, detachid, 0, 0))
-                        {
+                        // 进程存在，SEIZE模式 ？ 触发PTRACE_INTERRUPT ： 发送SIGSTOP
+                        if(gSeize ? ptrace(PTRACE_INTERRUPT, detachid, 0, 0) < 0 : tkill(detachid,SIGSTOP))
                             DERR(PTRACE_INTERRUPT);
-                        }
                         else
                         {
-                            // 接收由于STOP信号触发的事件
+                            // 接收由于PTRACE_INTERRUPT/STOP信号触发的事件
                             for(;;)
                             {
-                                int status = 0;
-                                int ret = waitpid(detachid, &status, __WALL);
+                                int status = 0, ret = 0, succ = 0;
+                                ret = waitpid(detachid, &status, __WALL);
                                 if(ret < 0)
                                 //                                if(wait4(detachid, &status,WUNTRACED,__WALL) < 0)
                                 {
                                     if (errno == EINTR)
                                         continue;
                                     DERR(waitpid);
-                                    DMSG(ML_WARN,"ret = %d\n",ret)
+                                    DMSG(ML_WARN,"ret = %d\n",ret);
                                     break;
                                 }
-                                // 再次解除追踪
-                                if(!ptraceDetach(detachid))
+                                int sig = WSTOPSIG(status);
+                                int evt = (unsigned)status >> 16;
+                                if(gSeize)
                                 {
-                                    syscall(__NR_tkill,detachid,SIGCONT);
-                                    DMSG(ML_WARN,"Ptrace force detach %llu success... \n",detachid)
+                                    if(evt == PTRACE_EVENT_STOP || sig == TRAP_SIG)
+                                        sig = 0;
+                                    succ = !ptraceDetach(detachid,sig);
+                                }
+                                else
+                                {
+                                    if(sig == SIGSTOP)
+                                        succ = !ptraceDetach(detachid);
+                                }
+
+                                // 解除成功
+                                if(succ)
+                                {
+                                    DMSG(ML_INFO,"Ptrace force detach %llu success... \n",detachid);
                                     pidDelete(&gPidTree,detachid);
                                     resetItNode();
                                     break;
+                                }
+                                // 不满足解除条件，继续这个进程，进入下一次循环等待
+                                else
+                                {
+                                    if(ptrace(PTRACE_CONT, detachid, 0, sig) < 0)
+                                        DMSG(ML_WARN,"PTRACE_CONT: %s(%d)\n", strerror(errno),detachid);
                                 }
                             }
                         }
@@ -85,7 +101,7 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
             FOR_TREE(node,gPidTree)
             {
                 pid_t detachid = getStruct(node)->pid;
-                DMSG(ML_ERR,"process %llu detach fail!\n",detachid)
+                DMSG(ML_ERR,"process %llu detach fail!\n",detachid);
             }
             break;
         }

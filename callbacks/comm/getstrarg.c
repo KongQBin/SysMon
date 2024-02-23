@@ -111,7 +111,7 @@ int getRealPath(PidInfo *info, char **str, size_t *len)
             * 无所谓，因为使用例如/home/user/../kongbin/sysmon路径也能满足业务逻辑
             * 转换是因为转换后的/home/kongbin/sysmon更加易于人类阅读，而且以也能适当的减少堆区内存的使用
             */
-            DMSG(ML_WARN,"realpath err : %s\n",strerror(errno))
+            DMSG(ML_WARN,"realpath err : %s\n",strerror(errno));
         }
     }
 #endif

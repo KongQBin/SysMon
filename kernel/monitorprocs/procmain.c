@@ -31,21 +31,20 @@ static int initControlInfoCallBackInfo()
 
 static int ifNotContinue()
 {
-    int ret = 0;
-    DMSG(ML_ERR,"pid = -1 errno = %d err = %s\n", errno, strerror(errno));
+    int ibreak = 0;
+    DMSG(ML_WARN,"Wait pid return -1. %s(%d).\n", strerror(errno), errno);
     switch (errno)
     {
     case ECHILD:    // 没有被追踪的进程了，退出循环
-        ret = 1;
+        ibreak = 1;
     case EINTR:     // 单纯被信号打断,接着wait
         break;
     case EINVAL:    // 无效参数
     default:        // 其它错误
-        ret = 1;
-//        dmsg("%s\n",strerror(errno));
+        ibreak = 1;
         break;
     }
-    return ret;
+    return ibreak;
 }
 
 static void getProcId(int evtType,pid_t pid,int status,ControlPolicy *info)
@@ -99,7 +98,6 @@ int checkWhite(PidInfo *pinfo)
 }
 
 #define GO_END(type) {tasktype = type; goto END;}
-#define TRAP_SIG (SIGTRAP|0x80)
 static CbArgvs av;
 void onProcessTask(pid_t *pid, int *status)
 {
@@ -121,6 +119,14 @@ void onProcessTask(pid_t *pid, int *status)
     // 判断是否校验过静态白名单，如果没有则进行校验，校验为白，则取消对其的追踪
     if(!CHKWHITED(pinfo->flags) && checkWhite(pinfo))
         GO_END(TT_TARGET_PROCESS_EXIT);
+    // 设置options
+    if(!gSeize && !IS_SETOPT(pinfo->flags))
+    {
+        if(ptrace(PTRACE_SETOPTIONS, pinfo->pid, NULL, EVENT_CONCERN) < 0)
+            DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),pinfo->pid);
+        else
+            SET_SETOPT(pinfo->flags);
+    }
 
     pinfo->status = *status;
     // 分析是信号还是事件
@@ -154,7 +160,7 @@ void onProcessTask(pid_t *pid, int *status)
     if(IS_BEGIN(regs) ? !gCurrentControlPolicy->cbf[callid] : !gCurrentControlPolicy->cef[callid])
         GO_END(TT_CALL_NOT_FOUND);
 
-//    DMSG(ML_INFO,"From *pid %d\tHit Call %d\n",*pid,callid);
+    DMSG(ML_INFO,"From *pid %d\tHit Call %d\n",*pid,callid);
     if(!pinfo)
     {
         if(pinfo = createPidInfo(*pid,0,0))
@@ -167,9 +173,7 @@ void onProcessTask(pid_t *pid, int *status)
         {
 //            DMSG(ML_WARN,"Current *pid %d PTRACE_SETOPTIONS\n",*pid);
             if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN) < 0)
-            {
                 DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
-            }
             else
                 SET_SETOPT(pinfo->flags);
         }
@@ -208,17 +212,19 @@ END:
     case TT_TO_BLOCK:
     case TT_REGS_READ_ERROR:
     case TT_CALL_UNREASONABLE:
-//        // 设置下次监控的类型
-//        if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN) < 0)
-//            DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
 //         放行该任务(也可能是一个事件)
         if(ptrace(PTRACE_SYSCALL, *pid, 0, 0) < 0)
             DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
         break;
-    case TT_IS_SIGNAL:    //部分信号直接放行
+    case TT_IS_SIGNAL:    //放行信号
         // 继续该任务（信号）
-        if(ptrace(PTRACE_CONT, *pid, 0, pinfo->status) < 0)
-            DMSG(ML_WARN,"PTRACE_CONT : %s(%d) *pid is %d\n",strerror(errno),errno,*pid);
+        if(ptrace(PTRACE_SYSCALL, *pid, 0, pinfo->status) < 0)
+            DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) *pid is %d\n",strerror(errno),errno,*pid);
+        break;
+    case TT_IS_SIGNAL_STOP:     /*仅在SEIZE模式生效*/
+        // 进入暂停且监听的状态（模拟对STOP信号的响应）
+        if(ptrace(PTRACE_LISTEN, *pid, 0, 0) < 0)
+            DMSG(ML_WARN,"PTRACE_LISTEN : %s(%d) *pid is %d\n",strerror(errno),errno,*pid);
         break;
     case TT_TARGET_PROCESS_EXIT:
         /*
@@ -265,9 +271,16 @@ void MonProcMain(pid_t cpid)
         }
         // 初始化监控信息
         initControlInfoCallBackInfo();
-        // 开始监控
+        // 开始监控'控制线程'
         if(!ptraceAttach(cpid))
             pidInsert(&gPidTree,createPidInfo(cpid,0,0));
+        else
+        {
+//            SIGSTOP
+            DMSG(ML_ERR,"PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,cpid);
+            return ;
+        }
+
         // 设置回调
         setTaskOptFunc(taskOpt);
 
@@ -277,12 +290,13 @@ void MonProcMain(pid_t cpid)
         {
             //
             status = 0;
-            npid = wait4(-1,&status,/*WNOHANG|WUNTRACED*/__WALL,0);
+//            npid = wait4(-1,&status,/*WNOHANG|WUNTRACED*/__WALL,0);
+            npid = wait4(-1,&status,WUNTRACED|__WALL,0);
             if(npid == -1 && ifNotContinue())   break;                              // 判断是否应该进入下个循环
             if(npid == cpid)                    onControlThreadMsg(cpid,status);    // 这一般是来自主进程的控制信息
             else                                onProcessTask(&npid,&status);       // 响应被监控进程反馈的事件
         }
     }while(0);
-    DMSG(ML_INFO,"MonProcMain to return\n")
+    DMSG(ML_INFO,"MonProcMain to return\n");
     return ;
 }

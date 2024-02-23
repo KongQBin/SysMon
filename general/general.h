@@ -48,19 +48,20 @@ static char *color[] = {
 
 #define SPIK_LEVEN(level) if(level > ML_INFO) break;
 #define NCOLOR              "\033[m"    /* 清除颜色 */
-#define DMSG(level, fmt, ...){ \
-do{\
-    SPIK_LEVEN(level);\
-    printf(color[level]);\
-    struct timespec timestamp;\
-    clock_gettime(CLOCK_REALTIME, &timestamp);\
-    printf("T:%09d ",timestamp.tv_nsec);\
-    printf("P:%llu ",gettid());\
-    printf("[%s:%d]:\t",__FILE__,__LINE__);\
-    printf(fmt,##__VA_ARGS__);\
-    printf(NCOLOR);\
-    /*fflush(stdout);*/\
-}while(0);\
-}\
+#define DMSG(level, fmt, ...)\
+({\
+    do{\
+        SPIK_LEVEN(level);\
+        printf(color[level]);\
+        struct timespec timestamp;\
+        clock_gettime(CLOCK_REALTIME, &timestamp);\
+        printf("T:%09d ",timestamp.tv_nsec);\
+        printf("P:%llu ",gettid());\
+        printf("[%s:%d]:\t",__FILE__,__LINE__);\
+        printf(fmt,##__VA_ARGS__);\
+        printf(NCOLOR);\
+        /*fflush(stdout);*/\
+    }while(0);\
+})
 
 #define DERR(syscallname)  DMSG(ML_ERR, "%s fail errcode %d, err is %s\n", #syscallname, errno, strerror(errno))

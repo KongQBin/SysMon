@@ -14,6 +14,7 @@
 /*            此处主要为了解决编译警告            */
 #define ID_GETTID       (IS_ARCH_64 ? 186 : 224)
 #define gettid()        syscall(ID_GETTID)
+#define tkill(tid,sig)  syscall(__NR_tkill,tid,sig)
 //#define ID_GETDENTS64   (IS_ARCH_64 ? 217 : 220)
 //#define getdents64(fd,buf,size) syscall(ID_GETDENTS64,fd,buf,size)
 

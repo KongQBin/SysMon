@@ -1,17 +1,20 @@
 #include "init.h"
 RegsOffet g_regsOffset;
+extern int gSeize;
 extern long DoS();
 extern int getRegsOffset();       // 初始化寄存器偏移
 int initRegsOffset()
 {
     int ret = getRegsOffset();
-    DMSG(ML_INFO,"current process id = %d\n",getpid());
-    DMSG(ML_INFO,"initRegsOffset ret = %d\n",ret);
-    DMSG(ML_INFO,"offset.call = %d\n",g_regsOffset.call);
-    DMSG(ML_INFO,"offset.ret = %d\n",g_regsOffset.ret);
-    DMSG(ML_INFO,"offset.argv1 = %d\n",g_regsOffset.argv1);
-    DMSG(ML_INFO,"offset.argv2 = %d\n",g_regsOffset.argv2);
-    DMSG(ML_INFO,"offset.argv3 = %d\n",g_regsOffset.argv3);
+    DMSG(ML_INFO,"Init regs offset %s.\n",ret ? "Fail" : "Success");
+    DMSG(ML_INFO,"Current tracking mode %s.\n",gSeize ? "SEIZE" : "ATTACH");
+    DMSG(ML_INFO,"Current process id = %d.\n",getpid());
+    DMSG(ML_INFO,"Offset:\n");
+    DMSG(ML_INFO,"> ret func(argv1,argv2,argv3).\n");
+    DMSG(ML_INFO,">   ^    ^(    ^,    ^,    ^).\n");
+    DMSG(ML_INFO,"> %3d %4d(%5d,%5d,%5d).\n",
+         g_regsOffset.ret,g_regsOffset.call,g_regsOffset.argv1,
+         g_regsOffset.argv2,g_regsOffset.argv3);
     return ret;
 }
 
@@ -37,7 +40,7 @@ int getRegsOffset()
     pid_t pid = fork();
     if(pid == 0)
     {
-        DMSG(ML_INFO,"son pid is %d\n",getpid());
+//        DMSG(ML_INFO,"son pid is %d\n",getpid());
         int fd = open("/dev/null",O_WRONLY);
         if(fd < 0) DMSG(ML_ERR,"open : %s\n",strerror(errno));
         if(fd >= 0 && write(pw,&fd,sizeof(fd)) == sizeof(fd))
@@ -58,10 +61,21 @@ int getRegsOffset()
     else if(pid > 0)
     {
         usleep(300000);
-        if (ptrace(PTRACE_ATTACH, pid, 0, 0) == -1) {
-            DMSG(ML_ERR,"ptrace attach : %s\n",strerror(errno));
-            return -3;
+        if(ptrace(PTRACE_SEIZE,pid,0,PTRACE_O_TRACESYSGOOD) < 0)
+        {
+            if(ptrace(PTRACE_ATTACH, pid, 0, 0) < 0) {
+                DMSG(ML_ERR,"ptrace attach : %s\n",strerror(errno));
+                return -3;
+            }
         }
+        else
+        {
+            if(ptrace(PTRACE_INTERRUPT, pid, 0L, 0L) < 0)
+                DMSG(ML_ERR,"ptrace interrupt : %s\n",strerror(errno));
+            // 切换为SEIZE模式
+            gSeize = 1;
+        }
+
 //        if(ptrace(PTRACE_SYSEMU, pid, 0, 0) == -1) {
 ////            DMSG(ML_ERR,"ptrace sysemu : %s\n",strerror(errno));
 ////            return -4;
@@ -136,7 +150,7 @@ int getRegsOffset()
                         if(pRegs[j]%1000 == ID_WRITE)
                         {
                             g_regsOffset.call = j;
-                            DMSG(ML_INFO,"call id is %d\n",pRegs[j]);
+//                            DMSG(ML_INFO,"call id is %d\n",pRegs[j]);
                             break;
                         }
                     }
