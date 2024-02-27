@@ -1,5 +1,6 @@
 #include "procmain.h"
 
+extern int globalexit;
 const char *WhiteList[] = {
     "Xorg",                 // 图形界面绘制，调用巨量的写(write)函数
     "SysMon",
@@ -11,16 +12,15 @@ const char *WhiteList[] = {
     "ZyUDiskTray",
 };
 
-extern int globalexit;
 static int initControlInfoCallBackInfo()
 {
     // 设置监控到关注的系统调用，在其执行前后的调用函数
-    SETFUNC(gDefaultControlPolicy,ID_WRITE,cbWrite,ceWrite);
-    //    SETFUNC(info,ID_FORK,cbFork,ceFork);
-    //    SETFUNC(info,ID_CLONE,cbClone,ceClone);
-    //    SETFUNC(info,ID_EXECVE,cbExecve,ceExecve);
-    //    SETFUNC(info,ID_CLOSE,cbClose,ceClose);
-    //    SETFUNC(info,ID_OPENAT,cbOpenat,ceOpenat);
+    //    SETFUNC(gDefaultControlPolicy,ID_WRITE,cbWrite,ceWrite);
+    //    SETFUNC(gDefaultControlPolicy,ID_FORK,cbFork,ceFork);
+    //    SETFUNC(gDefaultControlPolicy,ID_CLONE,cbClone,ceClone);
+    SETFUNC(gDefaultControlPolicy,ID_EXECVE,cbExecve,NULL);     // 对于启动，主要关注启动前调用
+    SETFUNC(gDefaultControlPolicy,ID_CLOSE,cbClose,ceClose);    // 对于关闭，主要关注关闭后
+    //    SETFUNC(gDefaultControlPolicy,ID_OPENAT,cbOpenat,ceOpenat);
     gPidTree.rb_node = NULL;
     gDefaultControlPolicy->ftree.rb_node = NULL;
     gDefaultControlPolicy->dtree.rb_node = NULL;
@@ -31,20 +31,20 @@ static int initControlInfoCallBackInfo()
 
 static int ifNotContinue()
 {
-    int ibreak = 0;
+    int toBreak = 0;
     DMSG(ML_WARN,"Wait pid return -1. %s(%d).\n", strerror(errno), errno);
     switch (errno)
     {
     case ECHILD:    // 没有被追踪的进程了，退出循环
-        ibreak = 1;
+        toBreak = 1;
     case EINTR:     // 单纯被信号打断,接着wait
         break;
     case EINVAL:    // 无效参数
     default:        // 其它错误
-        ibreak = 1;
+        toBreak = 1;
         break;
     }
-    return ibreak;
+    return toBreak;
 }
 
 static void getProcId(int evtType,pid_t pid,int status,ControlPolicy *info)
@@ -119,7 +119,7 @@ void onProcessTask(pid_t *pid, int *status)
     // 判断是否校验过静态白名单，如果没有则进行校验，校验为白，则取消对其的追踪
     if(!CHKWHITED(pinfo->flags) && checkWhite(pinfo))
         GO_END(TT_TARGET_PROCESS_EXIT);
-    // 设置options
+    // ATTACH模式下 设置options
     if(!gSeize && !IS_SETOPT(pinfo->flags))
     {
         if(ptrace(PTRACE_SETOPTIONS, pinfo->pid, NULL, EVENT_CONCERN) < 0)
@@ -151,7 +151,7 @@ void onProcessTask(pid_t *pid, int *status)
     }
 
     int callid = nDoS(CALL(regs));
-    if(callid < 0 || callid >= CALL_MAX)    // 判断系统调用号在一个合理范围
+    if(callid < 0 || callid >= CALL_MAX)      // 判断系统调用号在一个合理范围
         GO_END(TT_CALL_UNREASONABLE);
 //    if(callid == ID_EXIT_GROUP)             // 进程退出
 //        GO_END(TT_TARGET_PROCESS_EXIT);
@@ -160,7 +160,7 @@ void onProcessTask(pid_t *pid, int *status)
     if(IS_BEGIN(regs) ? !gCurrentControlPolicy->cbf[callid] : !gCurrentControlPolicy->cef[callid])
         GO_END(TT_CALL_NOT_FOUND);
 
-    DMSG(ML_INFO,"From *pid %d\tHit Call %d\n",*pid,callid);
+//    DMSG(ML_INFO,"From *pid %d\tHit Call %d %s\n",*pid,callid,IS_BEGIN(regs)?"Begin":"End");
     if(!pinfo)
     {
         if(pinfo = createPidInfo(*pid,0,0))
@@ -266,20 +266,19 @@ void MonProcMain(pid_t cpid)
         gDefaultControlPolicy = calloc(1,sizeof(ControlPolicy));
         if(!gDefaultControlPolicy)
         {
-            DMSG(ML_ERR,"calloc fail errcode is %d, err is %s\n",errno,strerror(errno));
+            DERR(calloc);
             break;
         }
         // 初始化监控信息
         initControlInfoCallBackInfo();
         // 开始监控'控制线程'
-        if(!ptraceAttach(cpid))
-            pidInsert(&gPidTree,createPidInfo(cpid,0,0));
-        else
+        if(ptraceAttach(cpid))
         {
-//            SIGSTOP
-            DMSG(ML_ERR,"PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,cpid);
-            return ;
+            DMSG(ML_ERR,"PTRACE_ATTACH : %s(%d) pid is %d\n",
+                 strerror(errno),errno,cpid);
+            break;
         }
+        pidInsert(&gPidTree,createPidInfo(cpid,0,0));
 
         // 设置回调
         setTaskOptFunc(taskOpt);
@@ -288,9 +287,7 @@ void MonProcMain(pid_t cpid)
         int status;
         while(1)
         {
-            //
             status = 0;
-//            npid = wait4(-1,&status,/*WNOHANG|WUNTRACED*/__WALL,0);
             npid = wait4(-1,&status,WUNTRACED|__WALL,0);
             if(npid == -1 && ifNotContinue())   break;                              // 判断是否应该进入下个循环
             if(npid == cpid)                    onControlThreadMsg(cpid,status);    // 这一般是来自主进程的控制信息

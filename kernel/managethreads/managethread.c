@@ -5,32 +5,9 @@ void setTaskOptFunc(void *func)
 {
     if(!taskOptFunc) taskOptFunc = func;
 }
-// 1： 要对哪个进程进行拷贝
-// 2： 位于目标进程的起始地址
-// 3： 要拷贝到的目标地址
-// 4： 要拷贝的长度
-// 如果参数4=NULL,则表示要拷贝的是字符串，此时参数3将被自动开辟
-int getArg(pid_t *pid, long *originaddr, void **targetaddr, long *len)
-{
-    if(len)
-    {
-        long readLen = *len;
-        for(int i=0;i<*len/WORDLEN+1;++i)
-        {
-            long tmpbuf = ptrace(PTRACE_PEEKDATA, *pid, *originaddr + (i*WORDLEN), NULL);
-            memcpy(&((long*)*targetaddr)[i],&tmpbuf,(readLen > WORDLEN) ? WORDLEN : readLen);
-            readLen -= WORDLEN;
-        }
-    }
-    else
-    {
-//        for(int i=0;;++i)
-//        {
-//        }
-    }
-    return 0;
-}
 
+extern int getArg(const pid_t *pid, const long *originaddr,
+                  void **targetaddr, size_t *len);
 static ManageInfo *minfo;
 void onControlThreadMsg(pid_t pid, int status)
 {

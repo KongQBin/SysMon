@@ -1,57 +1,58 @@
 #include "callbacks.h"
 
-int getStrArg(CbArgvs *argv)
+// 1： 要对哪个进程进行拷贝
+// 2： 位于目标进程的起始地址
+// 3： 要拷贝到的目标地址
+// 4： 要拷贝的长度
+// PS： 如果参数4=NULL,则表示要拷贝的是字符串，此时参数3将被自动开辟
+int getArg(const pid_t *pid, const long *originaddr, void **targetaddr, size_t *len)
 {
-//    Interactive *task = argv->task;
-//    char *str = NULL;
-//    int *resg2Offset = (int*)&g_regsOffset + 2;
-//    for(int i=0;i<sizeof(task->argv)/sizeof(task->argv[0]);++i)
-//    {
-//        if(task->argvType[i] == AT_STR)
-//        {
-//            if(getRegsStrArg(task->pid,task->regs[*(resg2Offset+i)],&str,&task->argvLen[i]))
-//            {
-//                DMSG(ML_WARN,"PTRACE_PEEKDATA error\n");
-//            }
-//            else
-//                task->argv[i] = (long)str;
-//        }
-//    }
-    return 0;
-}
-
-int getRegsStrArg(pid_t pid, long arg, char **str, size_t *len)
-{
-    *str = NULL;
-    int ret = 0, run = 1, j = 0;
-    size_t size = 0, osize = 0;
-    char *strend = NULL;
-    while(run)
+//    DMSG(ML_INFO,"len = %lld\n",*len);
+    int ret = 0;
+    if(*len)    // 有长度，证明有可能是二进制数据
     {
-        if(j == size/WORDLEN)
+        long readLen = *len;
+        for(int i=0;i<*len/WORDLEN+1;++i)
         {
-            osize = size;
-            size += PATH_MAX;
-            char *tmp = realloc(*str,size);
-            if(!tmp) {if(*str) {free(*str); *str = NULL;} ret = -1; break;} // 开辟失败，释放原有，错误退出
-            *str = tmp;
-            memset(*str+osize,0,PATH_MAX);  // 开辟成功，将新增内存初始化
+            long tmpbuf = ptrace(PTRACE_PEEKDATA, *pid, *originaddr + (i*WORDLEN), NULL);
+            memcpy(&((long*)*targetaddr)[i],&tmpbuf,(readLen > WORDLEN) ? WORDLEN : readLen);
+            readLen -= WORDLEN;
         }
-
-        for(;!ret && j<size/WORDLEN;++j)
+    }
+    else
+    {
+        char *tmp = NULL;
+        const int baseLen = 32*WORDLEN;
+        int reallocLen = baseLen, toBreak = 0;
+        for(;!toBreak && tmp=realloc(tmp,reallocLen);reallocLen*=2)
         {
-            long tmp = ptrace(PTRACE_PEEKDATA, pid, arg + (j*WORDLEN), NULL);
-            memcpy(&(*str)[j*WORDLEN], &tmp, WORDLEN);
-            strend = memchr(&(*str)[j*WORDLEN],'\0',WORDLEN);
-            if(!strend)                               continue; // 未找到结束符号
-            if(strend && strend == &((*str)[size-1])) continue; // 找到结束符号但其位于最后一个字节
-            // 其它找到结束符的情况
-            if(strend)
+            // 清空新开辟出的内存
+            memset(tmp+(reallocLen!=baseLen?reallocLen/2:0),
+                   0,reallocLen!=baseLen?reallocLen/2:reallocLen);
+            // 从新开辟出的位置继续进行拷贝
+            for(int i=(reallocLen!=baseLen?reallocLen/2/WORDLEN:0); i<reallocLen/WORDLEN; ++i)
             {
-                *len = strend - *str;       // 根据地址偏移得到字符串长度
-                run = 0;
-                break;
+                long tmpbuf = ptrace(PTRACE_PEEKDATA, *pid, *originaddr + (i*WORDLEN), NULL);
+                memcpy(&((long*)tmp)[i],&tmpbuf,WORDLEN);
+                // 查找结束位置
+                char *end = memchr(&tmp[i*WORDLEN],'\0',WORDLEN);
+                if(end && end!=&(tmp[reallocLen-1]))
+                {
+                    toBreak = 1;
+                    break;
+                }
             }
+        }
+        // 判断以上循环是否出错，无错赋之
+        if(tmp)
+        {
+            *targetaddr = tmp;
+            *len = reallocLen;
+        }
+        else
+        {
+            DERR(realloc);
+            ret = -1;
         }
     }
     return ret;

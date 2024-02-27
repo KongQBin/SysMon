@@ -60,8 +60,8 @@ typedef struct _ControlPolicy
     // tmp
     int toexit;
 } ControlPolicy;
-#define SETBLOCK(ControlInfo,CALLID)              {ControlInfo->block[CALLID/sizeof(void*)/8] |= 1 << CALLID%(sizeof(void*)*8);}
-#define UNBLOCK(ControlInfo,CALLID)               {ControlInfo->block[CALLID/sizeof(void*)/8] ^= 1 << CALLID%(sizeof(void*)*8);}
-#define ISBLOCK(ControlInfo,CALLID)               (ControlInfo->block[CALLID/sizeof(void*)/8] & 1 << CALLID%(sizeof(void*)*8))
-#define SETFUNC(ControlInfo,CALLID,CBF,CEF)       {ControlInfo->cbf[CALLID] = CBF; ControlInfo->cef[CALLID] = CEF;}
-#define UNSETFUNC(ControlInfo,CALLID,CBF,CEF)     SETFUNC(ControlInfo,CALLID,NULL,NULL)
+#define SETBLOCK(ControlPolicy,CALLID)              {ControlPolicy->block[CALLID/sizeof(void*)/8] |= 1 << CALLID%(sizeof(void*)*8);}
+#define UNBLOCK(ControlPolicy,CALLID)               {ControlPolicy->block[CALLID/sizeof(void*)/8] ^= 1 << CALLID%(sizeof(void*)*8);}
+#define ISBLOCK(ControlPolicy,CALLID)               (ControlPolicy->block[CALLID/sizeof(void*)/8] & 1 << CALLID%(sizeof(void*)*8))
+#define SETFUNC(ControlPolicy,CALLID,CBF,CEF)       {ControlPolicy->cbf[CALLID] = CBF; ControlPolicy->cef[CALLID] = CEF;}
+#define UNSETFUNC(ControlPolicy,CALLID,CBF,CEF)     SETFUNC(ControlPolicy,CALLID,NULL,NULL)

@@ -40,12 +40,16 @@ int getFdPath(PidInfo *info,long fd, char **path, size_t *len)
 int getFdOpenFlag(PidInfo *info,long fd, int *flag)
 {
     int ret = 0;
-    char *tmp = NULL;
-    char fdInfoPath[128] = { 0 };
+    char fdInfoPath[128] = { 0 },*tmp = NULL;
     sprintf(fdInfoPath,"/proc/%llu/task/%llu/fdinfo/%lld",info->gpid,info->pid,fd);
 
     FILE *fp = fopen(fdInfoPath,"r");
-    if(!fp) {return -1;}
+    if(!fp)
+    {
+        DERR(fopen);
+        return -1;
+    }
+
     char buf[512] = { 0 };
     while(fgets(buf,sizeof(buf),fp))
     {

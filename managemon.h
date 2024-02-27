@@ -35,8 +35,10 @@ struct CbMsg
     // 进程操作了哪个文件，当前为了高效率没有进行实现
     char         *exe;       // 可执行程序全路径
     int64_t      exelen;     // 可执行程序路径长度
-    char         *path;      // 文件全路径
-    int64_t      pathlen;    // 文件路径长度
+    char         *opath;      // 源文件全路径
+    int64_t      opathlen;    // 源文件路径长度
+    char         *tpath;     // 目标文件全路径
+    int64_t      tpathlen;   // 目标文件路径长度
 };
 
 static inline struct CbMsg* createMsg(int ocb,enum ETYPE type,pid_t gpid,
@@ -52,8 +54,8 @@ static inline struct CbMsg* createMsg(int ocb,enum ETYPE type,pid_t gpid,
         msg->pid = pid;
         msg->exe = exe;
         msg->exelen = exelen;
-        msg->path = path;
-        msg->pathlen = pathlen;
+        msg->opath = path;
+        msg->opathlen = pathlen;
     }
     return msg;
 }

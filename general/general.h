@@ -46,7 +46,7 @@ static char *color[] = {
 #define dmsg(fmt, ...)
 #endif
 
-#define SPIK_LEVEN(level) if(level > ML_INFO) break;
+#define SPIK_LEVEN(level) if(/*level > ML_INFO*/0) break;
 #define NCOLOR              "\033[m"    /* 清除颜色 */
 #define DMSG(level, fmt, ...)\
 ({\

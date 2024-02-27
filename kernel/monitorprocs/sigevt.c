@@ -14,7 +14,7 @@ void sigEvt(PidInfo *pinfo, TASKTYPE *type)
 
     int event = pinfo->status >> 16;
     int signal = WSTOPSIG(pinfo->status);
-    DMSG(ML_INFO,">> process %llu status = %d event is %d signal is %d\n",pinfo->pid,pinfo->status,event,signal);
+//    DMSG(ML_INFO,">> process %llu status = %d event is %d signal is %d\n",pinfo->pid,pinfo->status,event,signal);
     switch (event){
     // 0 证明这是单纯的信号
     case 0:
