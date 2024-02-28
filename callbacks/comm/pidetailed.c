@@ -37,7 +37,7 @@ int getFdPath(PidInfo *info,long fd, char **path, size_t *len)
     return mreadlink(fdPath,path,len);
 }
 
-int getFdOpenFlag(PidInfo *info,long fd, int *flag)
+int getFdOpenFlag(PidInfo *info,long fd, int *flags)
 {
     int ret = 0;
     char fdInfoPath[128] = { 0 },*tmp = NULL;
@@ -46,12 +46,28 @@ int getFdOpenFlag(PidInfo *info,long fd, int *flag)
     FILE *fp = fopen(fdInfoPath,"r");
     if(!fp)
     {
-        DERR(fopen);
-        return -1;
+        if(errno = ENOENT)
+        {
+            memset(fdInfoPath,0,sizeof(fdInfoPath));
+            // 进程目录的fdinfo和线程目录的fdinfo应该是一样的，故替换后再次尝试
+            sprintf(fdInfoPath,"/proc/%llu/fdinfo/%lld",info->gpid,fd);
+        }
+        fp = fopen(fdInfoPath,"r");
+        if(!fp)
+        {
+            // 理论上不应该走到这里，但又经常走到这里，不清楚是我本地bash的bug还是其它原因，
+            // 已确认是在close真正陷入内核前调用的，此时fd还没被内核关闭，但对应fd确实不存在
+
+            // 经验证应该属于bug，我在本地使用strace工具进行追踪，也会有类似的报错且fd一致，
+            // 既然属于bug，那么此处就不再进行打印了，否则打印如果太频繁，会影响性能
+
+            // DMSG(ML_ERR,"fopen fail errcode %d, err is %s : %s\n",
+            //      errno,strerror(errno),fdInfoPath);
+            return -1;
+        }
     }
 
-    char buf[512] = { 0 };
-    while(fgets(buf,sizeof(buf),fp))
+    for(char buf[512]={0};fgets(buf,sizeof(buf)-1,fp);memset(buf,0,sizeof(buf)))
     {
         if(!strstr(buf,"flags:")) continue;
         tmp = strstr(buf,"\t");
@@ -62,10 +78,10 @@ int getFdOpenFlag(PidInfo *info,long fd, int *flag)
     if(!ret && tmp)
     {
         char *endptr;
-        *flag = strtol(tmp,&endptr,8);
+        *flags = strtol(tmp,&endptr,8);
         if(tmp == endptr) ret = -3;
     }
     fclose(fp);
-//    DMSG(ML_INFO,"open flag = %d\n",*flag);
+//    DMSG(ML_INFO,"open flags = %d\n",*flags);
     return ret;
 }

@@ -125,7 +125,7 @@ int getRegsOffset()
                     do{
 
                         long tmp = ptrace(PTRACE_PEEKDATA, pid, pRegs[i], NULL);
-                        // 命中返回值
+                        // 命中返回值（-38这个值在其它架构不一定存在，届时再修改）
                         if(pRegs[i] == -38)
                         {
                             gRegsOffset.ret = i;
