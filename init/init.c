@@ -1,5 +1,5 @@
 #include "init.h"
-RegsOffet g_regsOffset;
+RegsOffet gRegsOffset;
 extern int gSeize;
 extern long DoS();
 extern int getRegsOffset();       // 初始化寄存器偏移
@@ -10,22 +10,26 @@ int initRegsOffset()
     DMSG(ML_INFO,"Current tracking mode %s.\n",gSeize ? "SEIZE" : "ATTACH");
     DMSG(ML_INFO,"Current process id = %d.\n",getpid());
     DMSG(ML_INFO,"Offset:\n");
-    DMSG(ML_INFO,"> ret func(argv1,argv2,argv3).\n");
-    DMSG(ML_INFO,">   ^    ^(    ^,    ^,    ^).\n");
-    DMSG(ML_INFO,"> %3d %4d(%5d,%5d,%5d).\n",
-         g_regsOffset.ret,g_regsOffset.call,g_regsOffset.argv1,
-         g_regsOffset.argv2,g_regsOffset.argv3);
+    DMSG(ML_INFO,"> ret func(argv1,argv2,argv3,argv4,argv5).\n");
+    DMSG(ML_INFO,">   ^    ^(    ^,    ^,    ^,    ^,    ^).\n");
+    DMSG(ML_INFO,"> %3d %4d(%5d,%5d,%5d,%5d,%5d).\n",
+         gRegsOffset.ret,gRegsOffset.call,gRegsOffset.argv1,gRegsOffset.argv2,
+         gRegsOffset.argv3,gRegsOffset.argv4,gRegsOffset.argv5);
     return ret;
 }
 
+typedef struct _UseCaseData
+{
+    long oldfd,newfd,flags;
+    char oldname[8], newname[8];
+} UseCaseData;
+
+// 经尝试，通过对子线程的追踪初始化寄存器偏移，不可行
+// 进行附加时会抛出错误：Operation not permitted
+// 故完善并使用下方getRegsOffset对子进程进程追踪
 int getRegsOffset()
 {
     int ret = -1;
-    const char *msg = "test write";
-    const char *msg2 = "abcdefghijklmn";
-    int msgLen = strlen(msg);
-    int msgLen2 = strlen(msg2);
-
     int fd[2] = {0};
     if(pipe(fd) < 0)
     {
@@ -33,27 +37,33 @@ int getRegsOffset()
         return -2;
     }
 
-    fcntl(fd[0],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);//设置fd为阻塞模式
-//    fcntl(fd[1],F_SETFL,fcntl(fd[0],F_GETFL)|O_NONBLOCK);
-
     int pr = fd[0], pw = fd[1];
+    UseCaseData *data = NULL;
     pid_t pid = fork();
     if(pid == 0)
     {
-//        DMSG(ML_INFO,"son pid is %d\n",getpid());
-        int fd = open("/dev/null",O_WRONLY);
-        if(fd < 0) DMSG(ML_ERR,"open : %s\n",strerror(errno));
-        if(fd >= 0 && write(pw,&fd,sizeof(fd)) == sizeof(fd))
-        {
-            int whileNum = 10;
-            while(--whileNum)
+        do{
+            data = calloc(1,sizeof(UseCaseData));
+            if(!data) break;
+            data->oldfd = 0xDEADBEEF;
+            data->newfd = 0xCAFEBABE;
+            data->flags = 0x0BADF00D;
+            strcpy(data->oldname,"nixnehc");
+            strcpy(data->newname,"nibgnok");
+
+            // 通知主进程我要使用的参数，随后进行调用
+            if(write(pw,data,sizeof(UseCaseData)) == sizeof(UseCaseData))
             {
-                usleep(100000);
-                write(fd,msg,msgLen);
-                write(fd,msg2,msgLen2);
+                int whileNum = 20;
+                while(--whileNum)
+                {
+                    usleep(100000);
+                    renameat2(data->oldfd,data->oldname,
+                              data->newfd,data->newname,data->flags);
+                }
             }
-        }
-        if(fd >= 0) close(fd);
+        }while(0);
+        if(data) free(data);
         if(pr >= 0) close(pr);
         if(pw >= 0) close(pw);
         exit(0);
@@ -61,115 +71,141 @@ int getRegsOffset()
     else if(pid > 0)
     {
         usleep(300000);
-        if(ptrace(PTRACE_SEIZE,pid,0,PTRACE_O_TRACESYSGOOD) < 0)
-        {
-            if(ptrace(PTRACE_ATTACH, pid, 0, 0) < 0) {
-                DMSG(ML_ERR,"ptrace attach : %s\n",strerror(errno));
-                return -3;
-            }
-        }
-        else
-        {
-            if(ptrace(PTRACE_INTERRUPT, pid, 0L, 0L) < 0)
-                DMSG(ML_ERR,"ptrace interrupt : %s\n",strerror(errno));
-            // 切换为SEIZE模式
-            gSeize = 1;
-        }
+        do{
+            data = calloc(1,sizeof(UseCaseData));
+            if(!data)
+            {ret = -3; break;}
+            if(read(pr,data,sizeof(UseCaseData)) != sizeof(UseCaseData))
+            {ret = -4; break;}
 
-//        if(ptrace(PTRACE_SYSEMU, pid, 0, 0) == -1) {
-////            DMSG(ML_ERR,"ptrace sysemu : %s\n",strerror(errno));
-////            return -4;
-//        }
-
-//        struct user_regs_struct regs;
-        struct user user;
-        int regsNum = sizeof(user.regs)/sizeof(long);
-
-        int sonFd = -1;
-        if(read(pr,&sonFd,sizeof(sonFd)) != sizeof(sonFd))
-            return -5;
-
-//        DMSG(ML_INFO,"sonFd is %d\n",sonFd);
-        int whileNum = 20;
-        memset(&g_regsOffset,-1,sizeof(g_regsOffset));
-        while(--whileNum)
-        {
-            wait(0);
-
-            if(!ret)
+            if(ptrace(PTRACE_SEIZE,pid,0,PTRACE_O_TRACESYSGOOD))
             {
-                if(ptrace(PTRACE_DETACH, pid, 0, 0) == -1 ) {
-                    DMSG(ML_ERR,"ptrace detach : %s\n",strerror(errno));
-                }
-                break;
-            }
-
-            memset(&user.regs,0,sizeof(user.regs));
-            ptrace(PT_GETREGS, pid, 0, &user.regs);
-            printUserRegsStruct2(&user);
-
-            long *pRegs = (long*)&user.regs;
-            for(int i=0;i<regsNum;++i)
-            {
-                // 命中返回值
-                if(g_regsOffset.ret == -1
-                    && pRegs[i] == -38) g_regsOffset.ret = i;
-                else
+                if(ptrace(PTRACE_ATTACH, pid, 0, 0))
                 {
-                    // 命中第一个参数
-                    if(g_regsOffset.argv1 == -1
-                        && pRegs[i] == sonFd) g_regsOffset.argv1 = i;
-                    // 命中第二个参数
-                    if(g_regsOffset.argv2 == -1)
-                    {
-                        long tmp = ptrace(PTRACE_PEEKDATA, pid, pRegs[i], NULL);
-                        if(!memcmp(&tmp,msg,sizeof(long))
-                            || !memcmp(&tmp,msg2,sizeof(long)))
-                            g_regsOffset.argv2 = i;
-                    }
-                    // 命中第三个参数
-                    if(g_regsOffset.argv3 == -1
-                        && (pRegs[i] == msgLen
-                            || pRegs[i] == msgLen2))
-                    {
-                        g_regsOffset.argv3 = i;
-                    }
+                    DMSG(ML_ERR,"ptrace attach : %s\n",strerror(errno));
+                    ret = -5;
+                    break;
                 }
             }
-
-            if(g_regsOffset.ret != -1 && g_regsOffset.argv1 != -1
-                && g_regsOffset.argv2 != -1 && g_regsOffset.argv3 != -1)
+            else
             {
-                for(int j=0;j<regsNum;++j)
+                if(ptrace(PTRACE_INTERRUPT, pid, 0L, 0L))
+                    DMSG(ML_ERR,"ptrace interrupt : %s\n",strerror(errno));
+                // 切换为SEIZE模式
+                gSeize = 1;
+            }
+
+            struct user user;
+            int regsNum = sizeof(user.regs)/sizeof(long);
+            int whileNum = 20,toContinue = 0;
+            memset(&gRegsOffset,-1,sizeof(gRegsOffset));
+            while(--whileNum >= 0)
+            {
+                waitpid(pid,NULL,WUNTRACED);
+                memset(&user.regs,0,sizeof(user.regs));
+                ptrace(PT_GETREGS, pid, 0, &user.regs);
+                printUserRegsStruct2(&user);
+
+                long *pRegs = (long*)&user.regs;
+                for(int i=0;i<regsNum;++i)
                 {
-                    // 命中系统调用号
-                    if(j != g_regsOffset.ret && j != g_regsOffset.argv1
-                        && j != g_regsOffset.argv2 && j != g_regsOffset.argv3)
+                    // 排除已经确认的寄存器
+                    toContinue = 0;
+                    for(int j=0; j<sizeof(gRegsOffset)/sizeof(int) -1/*减去参数6*/; ++j)
                     {
-                        // write调用号 32位系统等于4 64位系统等于1
-                        if(pRegs[j]%1000 == ID_WRITE)
+                        int *pOffset = (int*)&gRegsOffset;
+                        if(pOffset[j] == i)
                         {
-                            g_regsOffset.call = j;
-//                            DMSG(ML_INFO,"call id is %d\n",pRegs[j]);
+                            toContinue = 1;
                             break;
                         }
                     }
-                }
-            }
+                    if(toContinue) continue;
+                    // 开始判断并初始化各个寄存器的偏移
+                    do{
 
-            if(g_regsOffset.call != -1) ret = 0;
-            if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
-                DMSG(ML_ERR,"ptrace syscall : %s\n",strerror(errno));
-                ret = -6;
+                        long tmp = ptrace(PTRACE_PEEKDATA, pid, pRegs[i], NULL);
+                        // 命中返回值
+                        if(pRegs[i] == -38)
+                        {
+                            gRegsOffset.ret = i;
+                            break;
+                        }
+
+                        // 命中系统调用
+                        if(pRegs[i] == __NR_renameat2)
+                        {
+                            gRegsOffset.call = i;
+                            break;
+                        }
+
+                        // 命中第一个参数
+                        if(pRegs[i] == data->oldfd)
+                        {
+                            gRegsOffset.argv1 = i;
+                            break;
+                        }
+
+                        // 尝试判断第二个参数
+                        if(!strncmp((char*)&tmp,data->oldname,sizeof(long)))
+                        {
+                            gRegsOffset.argv2 = i;
+                            break;
+                        }
+
+                        // 命中第三个参数
+                        if(pRegs[i] == data->newfd)
+                        {
+                            gRegsOffset.argv3 = i;
+                            break;
+                        }
+
+                        // 尝试判断第四个参数
+                        if(!strncmp((char*)&tmp,data->newname,sizeof(long)))
+                        {
+                            gRegsOffset.argv4 = i;
+                            break;
+                        }
+
+                        // 命中第五个参数
+                        if(pRegs[i] == data->flags)
+                        {
+                            gRegsOffset.argv5 = i;
+                            break;
+                        }
+                    }while(0);
+                }
+
+                // 检查初始化进度
+                toContinue = 0;
+                for(int j=0; j<sizeof(gRegsOffset)/sizeof(int) -1/*减去参数6*/; ++j)
+                {
+                    int *pOffset = (int*)&gRegsOffset;
+                    if(pOffset[j] == -1)
+                        toContinue = 1;
+                }
+
+                if(!toContinue)
+                {
+                    // 全部初始化完成，结束循环
+                    if(ptrace(PTRACE_DETACH, pid, 0, 0))
+                        DMSG(ML_ERR,"ptrace detach : %s\n",strerror(errno));
+                    ret = 0;
+                    break;
+                }
+                else
+                    // 未初始化完成，继续下一次循环
+                    if(ptrace(PTRACE_SYSCALL, pid, 0, 0))
+                        DERR(PTRACE_SYSCALL);
             }
-        }
-        int status = 0;
-        waitpid(pid,&status,0);
+        }while(0);
     }
     else
     {
         DMSG(ML_ERR,"fork : %s\n",strerror(errno));
     }
+
+    if(data) free(data);
     if(pr >= 0) close(pr);
     if(pw >= 0) close(pw);
     return ret;

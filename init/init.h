@@ -17,14 +17,14 @@
     #define PTRACE_SYSEMU   31
 #endif
 
-#define RET(regs)    regs[g_regsOffset.ret]
-#define CALL(regs)   regs[g_regsOffset.call]
-#define ARGV_1(regs) regs[g_regsOffset.argv1]
-#define ARGV_2(regs) regs[g_regsOffset.argv2]
-#define ARGV_3(regs) regs[g_regsOffset.argv3]
-#define ARGV_4(regs) regs[g_regsOffset.argv4]
-#define ARGV_5(regs) regs[g_regsOffset.argv5]
-#define ARGV_6(regs) regs[g_regsOffset.argv6]
+#define RET(regs)    regs[gRegsOffset.ret]
+#define CALL(regs)   regs[gRegsOffset.call]
+#define ARGV_1(regs) regs[gRegsOffset.argv1]
+#define ARGV_2(regs) regs[gRegsOffset.argv2]
+#define ARGV_3(regs) regs[gRegsOffset.argv3]
+#define ARGV_4(regs) regs[gRegsOffset.argv4]
+#define ARGV_5(regs) regs[gRegsOffset.argv5]
+#define ARGV_6(regs) regs[gRegsOffset.argv6]
 
 typedef struct _RegsOffet
 {
@@ -37,7 +37,7 @@ typedef struct _RegsOffet
     int argv5;      //参数五
     int argv6;      //参数六
 } RegsOffet;
-extern RegsOffet g_regsOffset;
+extern RegsOffet gRegsOffset;
 int initRegsOffset();
 
 /* X64 LINUX 6.3.1 REGS

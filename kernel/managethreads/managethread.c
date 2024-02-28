@@ -166,7 +166,6 @@ pthread_t createManageThread(InitInfo *info)
     if(ret)
     {
         DERR(pthread_attr_init);
-//        DMSG(ML_ERR, "pthread_attr_init fail errcode is %d, err is %s\n", errno, strerror(errno));
         exit(1);
     }
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -174,7 +173,6 @@ pthread_t createManageThread(InitInfo *info)
     if(ret)
     {
         DERR(pthread_create);
-//        DMSG(ML_ERR, "pthread_create fail errcode is %d, err is %s\n", errno, strerror(errno));
         exit(1);
     }
     return tid;

@@ -43,6 +43,7 @@ int StartSystemMonitor()
     // 初始化寄存器偏移
     if(initRegsOffset())
         return -1;
+    return -1;
     // 初始化主进程进出消息的管道
     pipe(gPipeToMain);
     pipe(gPipeFromMain);

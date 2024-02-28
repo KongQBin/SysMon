@@ -59,7 +59,7 @@ int getFdOpenFlag(PidInfo *info,long fd, int *flag)
         ++tmp;
         break;
     }
-    if(!ret)
+    if(!ret && tmp)
     {
         char *endptr;
         *flag = strtol(tmp,&endptr,8);

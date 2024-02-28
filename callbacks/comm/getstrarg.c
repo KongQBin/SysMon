@@ -24,7 +24,7 @@ int getArg(const pid_t *pid, const long *originaddr, void **targetaddr, size_t *
         char *tmp = NULL;
         const int baseLen = 32*WORDLEN;
         int reallocLen = baseLen, toBreak = 0;
-        for(;!toBreak && tmp=realloc(tmp,reallocLen);reallocLen*=2)
+        for(;!toBreak && (tmp=realloc(tmp,reallocLen));reallocLen*=2)
         {
             // 清空新开辟出的内存
             memset(tmp+(reallocLen!=baseLen?reallocLen/2:0),
