@@ -1,7 +1,8 @@
 #pragma once
+#include <stdint.h>
 #include <pthread.h>
-#include "pidtree.h"
-#include "callbacks.h"
+#include "rbtree.h"
+#include "cbargvsdef.h"
 
 /*      Manage Thread Struct    */
 typedef struct _InitInfo

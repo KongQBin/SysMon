@@ -1,4 +1,10 @@
 #pragma once
+#include <sys/ptrace.h>
+#include <sys/user.h>
+#include <errno.h>
+#include "general.h"
+#include "cbdefine.h"
+#include "pidtree.h"
 extern int gSeize;
 typedef struct
 {

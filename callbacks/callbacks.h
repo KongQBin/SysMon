@@ -1,31 +1,15 @@
 #pragma once
-struct _ControlPolicy;
-struct _Interactive;
-struct _PidInfo;
-typedef struct _CallContext
-{
-    long *regs;
-} CallContext;
-
-typedef struct _CbArgvs
-{
-    struct _PidInfo *info;          // 用来获取进程关系
-    struct _ControlPolicy *cinfo;     // 存放控制信息
-    CallContext cctext;             // 当前系统调用的上下文
-} CbArgvs;
-/*                  回调函数形参                  */
-#define CB_ARGVS_TYPE(av1)            CbArgvs *av1
-#define CB_ARGVS                      CB_ARGVS_TYPE(argv)
+#include "kmstructs.h"
+#include "regsoffset.h"
+#include "cbargvs.h"
 
 #include <limits.h>
 #include "init.h"
 #include "general.h"
-//#include "cbdefine.h"   // 各种宏定义，添加系统调用需要添加对应宏
 #include "pidtree.h"
 #include "managemon.h"
 #include "readme.h"     // 首次开发回调函数请先阅读该文档
 #include "testfunc.h"
-//#include "controlinfo.h"
 
 
 // 获取PID详细信息

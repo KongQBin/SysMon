@@ -1,8 +1,10 @@
 #pragma once
+#include <time.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include "cbdefine.h"
+//#include "cbdefine.h"
 
 // MsgLevel与color的元素个数必须对应，否则将会触发段错误
 enum MsgLevel

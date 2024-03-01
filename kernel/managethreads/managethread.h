@@ -1,11 +1,15 @@
 #pragma once
-#include "general.h"
 #include <pthread.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
+#include <sys/ptrace.h>
+#include <sys/user.h>
+#include "cbdefine.h"
+#include "general.h"
 #include "kmstructs.h"
+#include "callbacks.h"
 
 // 当前线程是‘主进程’与‘监控进程’之间的通讯桥梁
 // 主要负责将‘主进程’的消息向‘监控进程‘进行传递

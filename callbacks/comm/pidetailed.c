@@ -58,8 +58,9 @@ int getFdOpenFlag(PidInfo *info,long fd, int *flags)
             // 理论上不应该走到这里，但又经常走到这里，不清楚是我本地bash的bug还是其它原因，
             // 已确认是在close真正陷入内核前调用的，此时fd还没被内核关闭，但对应fd确实不存在
 
-            // 经验证应该属于bug，我在本地使用strace工具进行追踪，也会有类似的报错且fd一致，
-            // 既然属于bug，那么此处就不再进行打印了，否则打印如果太频繁，会影响性能
+            // 经验证应该属于bug(被追踪的进程确实在关闭一个没被其打开的文件描述符)，
+            // 我在本地使用strace工具进行追踪，也会有类似的报错且fd一致，既然属于bug，
+            // 那么此处就不再进行打印了，否则打印如果太频繁，会影响性能
 
             // DMSG(ML_ERR,"fopen fail errcode %d, err is %s : %s\n",
             //      errno,strerror(errno),fdInfoPath);

@@ -181,7 +181,6 @@ void onProcessTask(pid_t *pid, int *status)
         memset(&av,0,sizeof(CbArgvs));
 //        av.block = ISBLOCK(info,callid);
         av.info = pinfo;
-        av.cinfo = gCurrentControlPolicy;
         av.cctext.regs = regs;
 //        av.task = task;
 //        av.td = td;

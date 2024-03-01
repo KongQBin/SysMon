@@ -1,4 +1,5 @@
 #pragma once
+#include <signal.h>
 #include "kmstructs.h"
 #define TRAP_SIG (SIGTRAP|0x80)       // 由于我们的追踪导致触发的信号
 

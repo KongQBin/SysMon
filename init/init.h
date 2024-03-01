@@ -9,35 +9,15 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include <stdlib.h>
+#include "regsoffset.h"
 //#include "cbtree.h"
 #include "general.h"
 #include "testfunc.h"
 
-#ifndef PTRACE_SYSEMU
-    #define PTRACE_SYSEMU   31
-#endif
+//#ifndef PTRACE_SYSEMU
+//    #define PTRACE_SYSEMU   31
+//#endif
 
-#define RET(regs)    regs[gRegsOffset.ret]
-#define CALL(regs)   regs[gRegsOffset.call]
-#define ARGV_1(regs) regs[gRegsOffset.argv1]
-#define ARGV_2(regs) regs[gRegsOffset.argv2]
-#define ARGV_3(regs) regs[gRegsOffset.argv3]
-#define ARGV_4(regs) regs[gRegsOffset.argv4]
-#define ARGV_5(regs) regs[gRegsOffset.argv5]
-#define ARGV_6(regs) regs[gRegsOffset.argv6]
-
-typedef struct _RegsOffet
-{
-    int ret;        //返回值
-    int call;       //系统调用号
-    int argv1;      //参数一
-    int argv2;      //参数二
-    int argv3;      //参数三
-    int argv4;      //参数四
-    int argv5;      //参数五
-    int argv6;      //参数六
-} RegsOffet;
-extern RegsOffet gRegsOffset;
 int initRegsOffset();
 
 /* X64 LINUX 6.3.1 REGS

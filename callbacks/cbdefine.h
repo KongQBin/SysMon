@@ -1,6 +1,7 @@
 #pragma once
 #include <unistd.h>
 #include <pthread.h>
+#include <syscall.h>
 // 一个字的长度(__WORDSIZE = 64 or 32 bit)
 #define WORDLEN         sizeof(long)
 // 调用后的情况,此时该系统调用已经执行结束

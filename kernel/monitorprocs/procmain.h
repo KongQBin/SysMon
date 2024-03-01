@@ -5,15 +5,15 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/resource.h>
 #include "kmstructs.h"
 #include "general.h"
 #include "pidtree.h"
 #include "cbdefine.h"
 #include "callbacks.h"
 #include "managethread.h"
-#include <sys/resource.h>
 #include "pglobal.h"
 #include "taskopt.h"
 #include "sigevt.h"
+// 监控子进程主函数
 void MonProcMain(pid_t tid);
-//ControlInfo *getControlInfo();
