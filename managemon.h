@@ -33,16 +33,16 @@ struct CbMsg
     // 至于为什么exe与path没有共用一个指针与长度
     // 是因为后期如果有需要可以很轻易的获取到哪个
     // 进程操作了哪个文件，当前为了高效率没有进行实现
-    char         *exe;       // 可执行程序全路径
+    const char   *exe;       // 可执行程序全路径
     int64_t      exelen;     // 可执行程序路径长度
-    char         *opath;      // 源文件全路径
-    int64_t      opathlen;    // 源文件路径长度
-    char         *tpath;     // 目标文件全路径
+    const char   *opath;     // 源文件全路径
+    int64_t      opathlen;   // 源文件路径长度
+    const char   *tpath;     // 目标文件全路径
     int64_t      tpathlen;   // 目标文件路径长度
 };
 
 static inline struct CbMsg* createMsg(int ocb,enum ETYPE type,pid_t gpid,
-                               pid_t pid,char *exe,int64_t exelen,char *path,int64_t pathlen)
+                               pid_t pid,const char *exe,int64_t exelen,char *path,int64_t pathlen)
 {
     struct CbMsg *msg = calloc(1,sizeof(struct CbMsg));
     if(msg)

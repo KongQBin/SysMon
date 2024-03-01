@@ -86,7 +86,7 @@ int checkWhite(PidInfo *pinfo)
     // 初始化校验标识，证明被检查过了
     SET_CHKWHITE(pinfo->flags);
     // 路径为空或获取失败
-    if(!pinfo->exe && getExe(pinfo,&pinfo->exe,&pinfo->exelen) == -1)
+    if(!pinfo->exe && getExe(pinfo,(char**)&pinfo->exe,&pinfo->exelen) == -1)
         return 1;
     for(int i=0;i<sizeof(WhiteList)/sizeof(WhiteList[0]);++i)
         if(strstr(pinfo->exe,WhiteList[i]))
@@ -134,11 +134,8 @@ void onProcessTask(pid_t *pid, int *status)
     // 如果不是系统调用，那么就跳转到END
     if(tasktype != TT_IS_SYSCALL) GO_END(tasktype);
 
-    //    MANAGE_SIGNAL(*pid,*status,gCurrentControlInfo);   /*信号处理*/
-    //    MANAGE_EVENT(*pid,*status,gCurrentControlInfo);    /*事件处理*/
 
-    // 如果是系统调用，那么进行以下处理流程
-
+    /*      如果是系统调用，那么进行以下处理流程     */
     // 初始化寄存器地址
     struct user user;
     long *regs = (long*)&user.regs;
@@ -168,23 +165,26 @@ void onProcessTask(pid_t *pid, int *status)
     }
     if(pinfo)
     {
-        // 判断是否已经setoptions了
-        if(!IS_SETOPT(pinfo->flags))
-        {
-//            DMSG(ML_WARN,"Current *pid %d PTRACE_SETOPTIONS\n",*pid);
-            if(ptrace(PTRACE_SETOPTIONS, *pid, NULL, EVENT_CONCERN) < 0)
-                DMSG(ML_WARN,"PTRACE_SETOPTIONS: %s(%d)\n", strerror(errno),*pid);
-            else
-                SET_SETOPT(pinfo->flags);
-        }
+        // 判断新的调用号与老的调用号不匹配
+        int oldcallod = nDoS(CALL(pinfo->cctext.regs));
+        if(oldcallod && callid != oldcallod)
+            // 清空老的系统调用上下文信息
+            clearContextArgvs(&pinfo->cctext);
 
-        memset(&av,0,sizeof(CbArgvs));
-//        av.block = ISBLOCK(info,callid);
+        // 初始化业务处理回调参数
         av.info = pinfo;
-        av.cctext.regs = regs;
-//        av.task = task;
-//        av.td = td;
-        IS_BEGIN(regs) ? gCurrentControlPolicy->cbf[callid](&av): gCurrentControlPolicy->cef[callid](&av);
+        av.cinfo = pinfo->cinfo;
+        av.cctext = &pinfo->cctext;
+        av.reserveContext = &pinfo->reserve;
+        memcpy(pinfo->cctext.regs,regs,sizeof(user.regs));
+        // 调用业务处理回调函数
+        IS_BEGIN(regs) ?
+            gCurrentControlPolicy->cbf[callid](&av):
+            gCurrentControlPolicy->cef[callid](&av);
+
+        if(!*av.reserveContext || !IS_BEGIN(regs))
+            // 清空老的系统调用上下文信息
+            clearContextArgvs(&pinfo->cctext);
     }
     else
     {
@@ -197,7 +197,7 @@ void onProcessTask(pid_t *pid, int *status)
          * 在这个进程B在退出时会通知进程组A，也会出现查询不到的情况
          * 无需关心该问题，进程组B已经被其它监控线程监控了
          */
-        DMSG(ML_WARN,"Current *pid %d is not in ptree\n",*pid);
+        DMSG(ML_WARN,"Current *pid %d is not in pid tree.\n",*pid);
     }
     tasktype = TT_SUCC;
 END:

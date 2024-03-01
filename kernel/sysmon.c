@@ -1,12 +1,12 @@
 #include "sysmon.h"
-int gSeize;                           // SEIZE模式与ATTACH模式
-int gProcNum;                         // 用于进行系统监控的进程总数
-int gPipeToMain[2];                   // 用于给主进程进行通讯的管道
-int gPipeFromMain[2];                 // 用于从主进程获取信息的管道
-struct rb_root gPidTree;              // 所监控的进程
-InitInfo gInitInfo[PROC_MAX];         // 用于保存最初的初始化信息
-ControlPolicy *gDefaultControlPolicy; // 全局默认控制策略
-ControlPolicy *gCurrentControlPolicy; // 正在使用的控制策略（有时指向gDefaultControlInfo，有时指向进程自定义控制策略）
+int gSeize;                                 // SEIZE模式与ATTACH模式
+int gProcNum;                               // 用于进行系统监控的进程总数
+int gPipeToMain[2];                         // 用于给主进程进行通讯的管道
+int gPipeFromMain[2];                       // 用于从主进程获取信息的管道
+struct rb_root gPidTree;                    // 所监控的进程
+InitInfo gInitInfo[PROC_MAX];               // 用于保存最初的初始化信息
+ControlPolicy *gDefaultControlPolicy;       // 全局默认控制策略
+const ControlPolicy *gCurrentControlPolicy; // 正在使用的控制策略（有时指向gDefaultControlInfo，有时指向进程自定义控制策略）
 int iterateAllThreadsToProcs()
 {
     pid_t *pids = NULL;

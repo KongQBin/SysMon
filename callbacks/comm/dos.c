@@ -10,8 +10,8 @@ inline long nDoS(long call) { return ~DOS&call; }
 
 inline long cbDoS(CB_ARGVS)
 {
-    pid_t *pid = &argv->info->pid;
-    long *regs = argv->cctext.regs;
+    const pid_t *pid = &argv->info->pid;
+    long *regs = argv->cctext->regs;
     // 修改系统调用号为不存在的调用，起到拒绝服务的目的
     CALL(regs) = CALL(regs) | DOS;
     if(ptrace(PTRACE_SETREGS, *pid, NULL, regs) < 0)
@@ -21,8 +21,8 @@ inline long cbDoS(CB_ARGVS)
 
 inline long ceDoS(CB_ARGVS)
 {
-    pid_t *pid = &argv->info->pid;
-    long *regs = argv->cctext.regs;
+    const pid_t *pid = &argv->info->pid;
+    long *regs = argv->cctext->regs;
     // -38 = Function not implemented = 未实现的函数
     // -1  = Operation not permitted  = 不被允许的操作
     // perror或strerror打印错误消息依据errno

@@ -20,11 +20,12 @@ int printMsg(struct CbMsg *info)
     do{
         if(info->opath && (info->opath[0] == 'p' || info->opath[0] == 's'))
             break;
-//        DMSG(level,
-//             "info.otid = %llu\tinfo.type = %llu\t"
-//             "info.gpid = %llu\tinfo.pid = %llu\n",
-//             info->otid,info->type,info->gpid,info->pid);
-        if(info->opath[0] != '/') break;
+        // DMSG(level,
+        //      "info.otid = %llu\tinfo.type = %llu\t"
+        //      "info.gpid = %llu\tinfo.pid = %llu\t"
+        //      "info->exe = %s\tinfo.opath = %s\tinfo.tpath = %s\n",
+        //      info->otid,info->type,info->gpid,info->pid,info->exe,info->opath,info->tpath);
+        if(!info->opath || info->opath[0] != '/') break;
         if(!info->tpath)
             DMSG(level,"Target exe %s operates on file %s\n",
                  info->exe,info->opath);
@@ -33,12 +34,6 @@ int printMsg(struct CbMsg *info)
                  info->exe,info->opath,info->tpath);
     }while(0);
 
-//    if(info->exe)
-//    {
-//        free(info->exe);
-//        info->exe = NULL;
-//    }
-    if(info->opath) free(info->opath);
     if(info) free(info);
     return 0;
 }

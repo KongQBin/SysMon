@@ -10,7 +10,7 @@ extern int gPipeFromMain[2];           // 用于从主进程获取信息的管�
 struct rb_root gPidTree;               // 所监控的进程
 extern InitInfo gInitInfo[PROC_MAX];   // 用于保存最初的初始化信息
 extern ControlPolicy *gDefaultControlPolicy;
-extern ControlPolicy *gCurrentControlPolicy;
+extern const ControlPolicy *gCurrentControlPolicy;
 typedef enum _TASKTYPE
 {
     TT_SUCC = 0,                     // 处理成功

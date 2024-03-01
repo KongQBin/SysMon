@@ -37,10 +37,16 @@ int pidDelete(struct rb_root *tree, pid_t id)
 //    DMSG(ML_ERR,"pidDelete\n");
 //    printf("pidDelete\n");
     if(!tree) return -1;
+
     PidInfo *info = pidSearch(tree,id);
     if(!info) return -2;
+
     rb_erase(&info->node, tree);
-    if(info->exe) free(info->exe);
+
+    if(info->exe) free((char*)info->exe);
+
+    clearContextArgvs(&info->cctext);
+
     free(info);
     info = NULL;
 //    DMSG(ML_INFO,"Delete pid tree data->pid = %d\n",id);
@@ -131,7 +137,7 @@ static int getPidInfoFromProc(PidInfo *pinfo)
         sprintf(pidPath,"/proc/%llu/task/%llu",pinfo->gpid,pinfo->pid);
 
     // 获取可执行程序路径
-    if(!ret && !pinfo->exe && getExe(pinfo,&pinfo->exe,&pinfo->exelen) <= 0)
+    if(!ret && !pinfo->exe && getExe(pinfo,(char**)&pinfo->exe,&pinfo->exelen) <= 0)
         ret = -4;
 
     // 获取父进程的id

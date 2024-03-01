@@ -58,7 +58,7 @@ int getArg(const pid_t *pid, const long *originaddr, void **targetaddr, size_t *
     return ret;
 }
 
-int getRealPath(PidInfo *info, char **str, size_t *len)
+int getRealPath(const PidInfo *info, char **str, size_t *len)
 {
     int ret = 0;
     char *tmp = NULL;

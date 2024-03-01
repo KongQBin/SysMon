@@ -2,7 +2,6 @@
 #include "kmstructs.h"
 #include "regsoffset.h"
 #include "cbargvs.h"
-
 #include <limits.h>
 #include "init.h"
 #include "general.h"
@@ -13,10 +12,10 @@
 
 
 // 获取PID详细信息
-extern int getCwd(PidInfo *info,char **cwd, size_t *len);                    // cwd   = 当前运行路径                  传入空指针的地址，需要手动去释放
-extern int getExe(PidInfo *info,char **exe, size_t *len);                    // path  = 当前可执行程序路径            传入空指针的地址，需要手动去释放
-extern int getFdPath(PidInfo *info,long fd, char **path, size_t *len);       // path  = 当前被操作的描述符的路径      传入空指针的地址，需要手动去释放
-extern int getFdOpenFlag(PidInfo *info,long fd, int *flags);                 // flags = 当前被操作描述符的打开权限    传入现有内存/栈区地址
+extern int getCwd(const PidInfo *info,char **cwd, size_t *len);                    // cwd   = 当前运行路径                  传入空指针的地址，需要手动去释放
+extern int getExe(const PidInfo *info,char **exe, size_t *len);                    // path  = 当前可执行程序路径            传入空指针的地址，需要手动去释放
+extern int getFdPath(const PidInfo *info,long fd, char **path, size_t *len);       // path  = 当前被操作的描述符的路径      传入空指针的地址，需要手动去释放
+extern int getFdOpenFlag(const PidInfo *info,long fd, int *flags);                 // flags = 当前被操作描述符的打开权限    传入现有内存/栈区地址
 /*
  * 获取内存中的参数
  * @pid： 要对哪个进程进行拷贝
@@ -37,7 +36,7 @@ extern int getArg(const pid_t *pid, const long *originaddr, void **targetaddr, s
  * @len：返回路径长度
  * @ret：成功返回0
 */
-extern int getRealPath(PidInfo *info, char **str, size_t *len);
+extern int getRealPath(const PidInfo *info, char **str, size_t *len);
 
 #define EXTERN_FUNC(name,argvs) \
 extern long cb##name(argvs); \
