@@ -1,8 +1,9 @@
+#include "startmon.h"
 #include "sysmon.h"
 #include "msgloop.h"
 
 int globalexit = 0;
-int printMsg(struct CbMsg *info)
+int printMsg(CbMsg *info)
 {
     if(!info) return -1;
     enum MsgLevel level = ML_INFO;
@@ -69,13 +70,13 @@ void redirectStdout()
         DERR(freopen);
 }
 
-int main(int argc, char** argv)
+int StartMon(MonCb callback)
 {
 //    redirectStdout();
     // 设置进程优先级 -20 是最高优先级(子进程会继承该优先级)
     setpriority(PRIO_PROCESS, getpid(), -20);
     // 启动监控进程
-    if(StartSystemMonitor()) return -1;
+    if(StartSystemMonitor(callback)) return -1;
     // 给主进程单独设置信号处理函数
     signal(SIGINT,sigOptions);  // Ctrl + c
     signal(SIGTERM,sigOptions); // kill -15

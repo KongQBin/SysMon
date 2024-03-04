@@ -19,7 +19,6 @@ static inline int __ptraceAttach(ptraceargs *args)
     int traceop = gSeize ? PTRACE_SEIZE : PTRACE_ATTACH;
     long setopt = gSeize ? EVENT_CONCERN : 0L;
     if(ptrace(traceop, args->pid, 0L, setopt) < 0)
-//    if(ptrace(PTRACE_ATTACH, args->pid, 0, 0) < 0)
     {
         if(!args->slient) DMSG(ML_WARN_2,"PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,args->pid);
         return -1;

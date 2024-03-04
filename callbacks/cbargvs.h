@@ -8,6 +8,7 @@ typedef struct _CbArgvs
     // info中的cinfo，此处主要是为了使用方便
     const ControlPolicy *cinfo;
     // info中的reserve和cctext，此处是为了方便修改
-    int *reserveContext;
+    int *clearContext;
+    // 保存在该结构中的变量无需手动释放
     CallContext *cctext;
 } CbArgvs;

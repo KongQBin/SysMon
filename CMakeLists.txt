@@ -1,5 +1,3 @@
-project(SysMon)
-cmake_minimum_required(VERSION 2.9)
 include_directories(
     ./
     ./init
@@ -71,6 +69,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -O3")
 add_definitions(-D_GNU_SOURCE)      #解决pthread_tryjoin_np警告
 link_libraries(pthread)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
-add_executable(test ${TEST_LIST})
-#add_library(SysMon SHARED ${SYSMON_LIST})
-add_executable(${PROJECT_NAME} ${SYSMON_LIST})
+#add_executable(test ${TEST_LIST})
+add_library(SysMon SHARED ${SYSMON_LIST})
+#add_executable(${PROJECT_NAME} ${SYSMON_LIST})

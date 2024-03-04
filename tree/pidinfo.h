@@ -54,7 +54,7 @@ typedef struct _PidInfo
     const ControlPolicy *cinfo;
 
     // 是否保留cctext到后置调用
-    int reserve;
+    int clearCctext;
     // 系统调用参数，放在此处可以使某个系统调用
     // 的前置、后置调用可以共用这个参数
     // 例如：

@@ -21,8 +21,6 @@ long cbClose(CB_ARGVS)
         argv->cctext->types[AO_ARGV1] = CAT_STRING;
         argv->cctext->argvsLen[AO_ARGV1] = len;
         argv->cctext->argvs[AO_ARGV1] = (long)path;
-        // 将上下文的生命周期延长到ceClose
-        *argv->reserveContext = 1;
     }while(0);
     return 0;
 }
@@ -35,8 +33,7 @@ long ceClose(CB_ARGVS)
     // 这边判断一下长度，因为cbClose中的openflag、fdpath判断失败会退出
     // 此处如果不加以判断，则会将一些空信息传递到上层，浪费性能
     if(argv->cctext->argvsLen[AO_ARGV1] && RET(argv->cctext->regs) == 0 && PutMsg)
-        PutMsg(createMsg(ID_CLOSE, ISBLOCK(argv->cinfo,ID_CLOSE) ? BLOCK : NBLOCK,
-                         argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,
-                         (char*)argv->cctext->argvs[AO_ARGV1],argv->cctext->argvsLen[AO_ARGV1]));
+        PutMsg(createMsg(ID_CLOSE,NBLOCK,argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,
+                         (char*)argv->cctext->argvs[AO_ARGV1],argv->cctext->argvsLen[AO_ARGV1],NULL,0));
     return 0;
 }

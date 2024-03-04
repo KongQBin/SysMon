@@ -48,8 +48,12 @@ extern long nDoS(long call);               // (内联)临时去除dos标记
 EXTERN_FUNC(DoS,CB_ARGVS)                  // 设置与返回拒绝服务
 // 提供(监控系统调用)服务
 EXTERN_FUNC(Openat,CB_ARGVS)
-EXTERN_FUNC(Write,CB_ARGVS)
 EXTERN_FUNC(Close,CB_ARGVS)
+EXTERN_FUNC(Execve,CB_ARGVS)
+EXTERN_FUNC(Rename,CB_ARGVS)
+EXTERN_FUNC(Renameat,CB_ARGVS)
+EXTERN_FUNC(Renameat2,CB_ARGVS)
+
 EXTERN_FUNC(Fork,CB_ARGVS)
 EXTERN_FUNC(Clone,CB_ARGVS)
-EXTERN_FUNC(Execve,CB_ARGVS)
+EXTERN_FUNC(Write,CB_ARGVS)

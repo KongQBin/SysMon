@@ -71,6 +71,9 @@
 #define ID_EXECVEAT     (IS_ARCH_64 ? 322 : 358)
 #define ID_KILL         (IS_ARCH_64 ? 62 : 37)
 #define ID_EXIT_GROUP   (IS_ARCH_64 ? 231 : 252)
+#define ID_RENAME       __NR_rename
+#define ID_RENAMEAT     __NR_renameat
+#define ID_RENAMEAT2    __NR_renameat2
 
 #define EVENT_CONCERN \
 (PTRACE_O_TRACESYSGOOD|PTRACE_O_TRACEEXEC|\

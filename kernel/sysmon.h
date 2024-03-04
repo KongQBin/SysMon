@@ -48,5 +48,4 @@ typedef struct _MainData
     MonProc monproc;
     Outside outside;
 } MData;
-
-int StartSystemMonitor();
+int StartSystemMonitor(MonCb callback);

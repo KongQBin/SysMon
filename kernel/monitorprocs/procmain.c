@@ -18,8 +18,11 @@ static int initControlInfoCallBackInfo()
     //    SETFUNC(gDefaultControlPolicy,ID_WRITE,cbWrite,ceWrite);
     //    SETFUNC(gDefaultControlPolicy,ID_FORK,cbFork,ceFork);
     //    SETFUNC(gDefaultControlPolicy,ID_CLONE,cbClone,ceClone);
-    SETFUNC(gDefaultControlPolicy,ID_EXECVE,cbExecve,NULL);     // 对于启动，主要关注启动前调用
-    SETFUNC(gDefaultControlPolicy,ID_CLOSE,cbClose,ceClose);    // 对于关闭，主要关注关闭后
+    SETFUNC(gDefaultControlPolicy,ID_EXECVE,cbExecve,ceExecve);
+    SETFUNC(gDefaultControlPolicy,ID_CLOSE,cbClose,ceClose);
+    SETFUNC(gDefaultControlPolicy,ID_RENAME,cbRename,ceRename);
+    SETFUNC(gDefaultControlPolicy,ID_RENAMEAT,cbRenameat,ceRenameat);
+    SETFUNC(gDefaultControlPolicy,ID_RENAMEAT2,cbRenameat2,ceRenameat2);
     //    SETFUNC(gDefaultControlPolicy,ID_OPENAT,cbOpenat,ceOpenat);
     gPidTree.rb_node = NULL;
     gDefaultControlPolicy->ftree.rb_node = NULL;
@@ -175,14 +178,30 @@ void onProcessTask(pid_t *pid, int *status)
         av.info = pinfo;
         av.cinfo = pinfo->cinfo;
         av.cctext = &pinfo->cctext;
-        av.reserveContext = &pinfo->reserve;
+        av.clearContext = &pinfo->clearCctext;
         memcpy(pinfo->cctext.regs,regs,sizeof(user.regs));
         // 调用业务处理回调函数
         IS_BEGIN(regs) ?
             gCurrentControlPolicy->cbf[callid](&av):
             gCurrentControlPolicy->cef[callid](&av);
+        // 强行更新可执行程序路径及长度
+        if(callid == ID_EXECVE && !IS_BEGIN(regs)
+            && pinfo->cctext.argvsLen[AO_ARGV1]
+            && RET(pinfo->cctext.regs) == 0)
+        {
+            // 释放原始空间
+            free((char*)pinfo->exe);
+            // 强行赋值
+            char **exe = (char**)&pinfo->exe;
+            *exe = (char*)pinfo->cctext.argvs[AO_ARGV1];
+            pinfo->exelen = pinfo->cctext.argvsLen[AO_ARGV1];
+            // 避免被释放
+            pinfo->cctext.types[AO_ARGV1] = CAT_NONE;
+            pinfo->cctext.argvsLen[AO_ARGV1] = 0;
+            pinfo->cctext.argvs[AO_ARGV1] = 0;
+        }
 
-        if(!*av.reserveContext || !IS_BEGIN(regs))
+        if(*av.clearContext || !IS_BEGIN(regs))
             // 清空老的系统调用上下文信息
             clearContextArgvs(&pinfo->cctext);
     }

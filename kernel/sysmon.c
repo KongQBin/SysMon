@@ -37,8 +37,7 @@ int iterateAllThreadsToProcs()
     return 0;
 }
 
-int printMsg(struct CbMsg *info);
-int StartSystemMonitor()
+int StartSystemMonitor(MonCb callback)
 {
     // 初始化寄存器偏移
     if(initRegsOffset())
@@ -68,7 +67,7 @@ int StartSystemMonitor()
         if(pid == 0)
         {
             // 设置回调函数
-            PutMsg = printMsg;
+            PutMsg = callback;
             MonProcMain(gInitInfo[i].pid);
 
             // 通知主进程，当前进程已经退出
