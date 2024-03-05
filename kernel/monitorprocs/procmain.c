@@ -169,8 +169,8 @@ void onProcessTask(pid_t *pid, int *status)
     if(pinfo)
     {
         // 判断新的调用号与老的调用号不匹配
-        int oldcallod = nDoS(CALL(pinfo->cctext.regs));
-        if(oldcallod && callid != oldcallod)
+        int oldcallid = nDoS(CALL(pinfo->cctext.regs));
+        if(oldcallid && callid != oldcallid)
             // 清空老的系统调用上下文信息
             clearContextArgvs(&pinfo->cctext);
 
@@ -180,10 +180,26 @@ void onProcessTask(pid_t *pid, int *status)
         av.cctext = &pinfo->cctext;
         av.clearContext = &pinfo->clearCctext;
         memcpy(pinfo->cctext.regs,regs,sizeof(user.regs));
-        // 调用业务处理回调函数
+
+        // 读取execve的寄存器
+        if(callid == ID_EXECVE && IS_BEGIN(regs))
+        {
+            size_t len = 0;
+            char *str = NULL;
+            if(!getArg(&av.info->pid,&ARGV_1(av.cctext->regs),(void*)&str,&len))
+            {
+                if(!getRealPath(av.info, &str, &len))
+                    SAVE_ARGV(AO_ARGV1,CAT_STRING,(long)str,len);
+                else
+                    DMSG(ML_ERR,"getRegsStrArg err : %s\n",strerror(errno));
+            }
+        }
+
+        /* 调用业务处理回调函数 */
         IS_BEGIN(regs) ?
             gCurrentControlPolicy->cbf[callid](&av):
             gCurrentControlPolicy->cef[callid](&av);
+
         // 强行更新可执行程序路径及长度
         if(callid == ID_EXECVE && !IS_BEGIN(regs)
             && pinfo->cctext.argvsLen[AO_ARGV1]
@@ -200,8 +216,8 @@ void onProcessTask(pid_t *pid, int *status)
             pinfo->cctext.argvsLen[AO_ARGV1] = 0;
             pinfo->cctext.argvs[AO_ARGV1] = 0;
         }
-
-        if(*av.clearContext || !IS_BEGIN(regs))
+        // EXECVE不受clearContext的限制
+        if(callid != ID_EXECVE && (*av.clearContext || !IS_BEGIN(regs)))
             // 清空老的系统调用上下文信息
             clearContextArgvs(&pinfo->cctext);
     }
