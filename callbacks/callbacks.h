@@ -1,4 +1,9 @@
 #pragma once
+/*
+ * Callbacks
+ * 该文件主要用于处理与上层业务逻辑相关的需求
+ *
+*/
 #include "kmstructs.h"
 #include "regsoffset.h"
 #include "cbargvs.h"
@@ -11,12 +16,15 @@
 #include "testfunc.h"
 
 #define CREATE_MSG(callid,block,...) \
-createMsg(callid,block,argv->info->cinfo->binfo.wfd, \
-argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,__VA_ARGS__)
-#define SAVE_ARGV(index,type,addr,len) \
+    createMsg(callid,block,argv->info->cinfo->binfo.wfd, \
+    argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,__VA_ARGS__)
+#define CUSTOM_SAVE_ARGV(argv,index,type,addr,len) ({\
     argv->cctext->types[index] = type; \
     argv->cctext->argvs[index] = addr; \
-    argv->cctext->argvsLen[index] = len;
+    argv->cctext->argvsLen[index] = len;})
+#define SAVE_ARGV(index,type,addr,len) \
+    CUSTOM_SAVE_ARGV(argv,index,type,addr,len)
+
 #define EXTERN_FUNC(name,argvs) \
 extern long cb##name(argvs); \
 extern long ce##name(argvs);

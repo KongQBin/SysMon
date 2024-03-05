@@ -13,6 +13,7 @@ extern ControlPolicy *gDefaultControlPolicy;
 extern const ControlPolicy *gCurrentControlPolicy;
 typedef enum _TASKTYPE
 {
+    TT_NONE = -1,
     TT_SUCC = 0,                     // 处理成功
     TT_TARGET_PROCESS_EXIT,          // 进程退出
     TT_REGS_READ_ERROR,              // 寄存器读取失败

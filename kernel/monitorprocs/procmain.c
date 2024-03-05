@@ -104,7 +104,7 @@ int checkWhite(PidInfo *pinfo)
 static CbArgvs av;
 void onProcessTask(pid_t *pid, int *status)
 {
-    TASKTYPE tasktype = TT_SUCC;
+    TASKTYPE tasktype = TT_NONE;
     PidInfo *pinfo = pidSearch(&gPidTree,*pid);
     if(!pinfo)
     {
@@ -156,10 +156,6 @@ void onProcessTask(pid_t *pid, int *status)
 //    if(callid == ID_EXIT_GROUP)             // 进程退出
 //        GO_END(TT_TARGET_PROCESS_EXIT);
 
-    // 指针数组作为bloom使用，判断是否关注该系统调用
-    if(IS_BEGIN(regs) ? !gCurrentControlPolicy->cbf[callid] : !gCurrentControlPolicy->cef[callid])
-        GO_END(TT_CALL_NOT_FOUND);
-
 //    DMSG(ML_INFO,"From *pid %d\tHit Call %d %s\n",*pid,callid,IS_BEGIN(regs)?"Begin":"End");
     if(!pinfo)
     {
@@ -189,16 +185,19 @@ void onProcessTask(pid_t *pid, int *status)
             if(!getArg(&av.info->pid,&ARGV_1(av.cctext->regs),(void*)&str,&len))
             {
                 if(!getRealPath(av.info, &str, &len))
-                    SAVE_ARGV(AO_ARGV1,CAT_STRING,(long)str,len);
+                    CUSTOM_SAVE_ARGV((&av),AO_ARGV1,CAT_STRING,(long)str,len);
                 else
                     DMSG(ML_ERR,"getRegsStrArg err : %s\n",strerror(errno));
             }
         }
 
         /* 调用业务处理回调函数 */
+        // 区分调用前与调用后->判断空指针->调用函数/将tasktype赋值
         IS_BEGIN(regs) ?
-            gCurrentControlPolicy->cbf[callid](&av):
-            gCurrentControlPolicy->cef[callid](&av);
+            (gCurrentControlPolicy->cbf[callid] ?
+                 gCurrentControlPolicy->cbf[callid](&av) : (tasktype = TT_CALL_NOT_FOUND))
+                       :(gCurrentControlPolicy->cef[callid] ?
+                              gCurrentControlPolicy->cef[callid](&av) : (tasktype = TT_CALL_NOT_FOUND));
 
         // 强行更新可执行程序路径及长度
         if(callid == ID_EXECVE && !IS_BEGIN(regs)
@@ -217,7 +216,7 @@ void onProcessTask(pid_t *pid, int *status)
             pinfo->cctext.argvs[AO_ARGV1] = 0;
         }
         // EXECVE不受clearContext的限制
-        if(callid != ID_EXECVE && (*av.clearContext || !IS_BEGIN(regs)))
+        if((*av.clearContext && callid != ID_EXECVE) || !IS_BEGIN(regs))
             // 清空老的系统调用上下文信息
             clearContextArgvs(&pinfo->cctext);
     }
@@ -234,7 +233,7 @@ void onProcessTask(pid_t *pid, int *status)
          */
         DMSG(ML_WARN,"Current *pid %d is not in pid tree.\n",*pid);
     }
-    tasktype = TT_SUCC;
+    if(tasktype = TT_NONE) tasktype = TT_SUCC;
 END:
 //    DMSG(ML_WARN,"Task type = %d\n",tasktype);
 
