@@ -15,7 +15,6 @@ typedef struct
 
 static inline int __ptraceAttach(ptraceargs *args)
 {
-
     int traceop = gSeize ? PTRACE_SEIZE : PTRACE_ATTACH;
     long setopt = gSeize ? EVENT_CONCERN : 0L;
     if(ptrace(traceop, args->pid, 0L, setopt) < 0)
@@ -28,17 +27,8 @@ static inline int __ptraceAttach(ptraceargs *args)
     if(gSeize && ptrace(PTRACE_INTERRUPT, args->pid, 0L, 0L) < 0)
     {
         if(!args->slient) DMSG(ML_WARN_2,"PTRACE_INTERRUPT : %s(%d) pid is %d\n",strerror(errno),errno,args->pid);
-        return -1;
+        return -2;
     }
-    //    int ret = 0;
-    //    do{
-    //        if(ptrace(PTRACE_ATTACH, pid, 0, 0) < 0)
-    //        {
-    //            DMSG(ML_WARN_2,"PTRACE_ATTACH : %s(%d) pid is %d\n",strerror(errno),errno,pid);
-    //            if(errno == ESRCH)  continue;
-    //            if(errno != EPERM)  ret = -1;
-    //        }
-    //    }while(0);
     return 0;
 }
 static inline int __ptraceDetach(ptraceargs *args)

@@ -16,11 +16,8 @@ long cbClose(CB_ARGVS)
         // 获取与描述符对应的文件
         if(!getFdPath(argv->info,ARGV_1(argv->cctext->regs),&path,&len))
             break;
-
         // 保存变量
-        argv->cctext->types[AO_ARGV1] = CAT_STRING;
-        argv->cctext->argvsLen[AO_ARGV1] = len;
-        argv->cctext->argvs[AO_ARGV1] = (long)path;
+        SAVE_ARGV(AO_ARGV1,CAT_STRING,(long)path,len);
     }while(0);
     return 0;
 }
@@ -33,7 +30,6 @@ long ceClose(CB_ARGVS)
     // 这边判断一下长度，因为cbClose中的openflag、fdpath判断失败会退出
     // 此处如果不加以判断，则会将一些空信息传递到上层，浪费性能
     if(argv->cctext->argvsLen[AO_ARGV1] && RET(argv->cctext->regs) == 0 && PutMsg)
-        PutMsg(createMsg(ID_CLOSE,NBLOCK,argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,
-                         (char*)argv->cctext->argvs[AO_ARGV1],argv->cctext->argvsLen[AO_ARGV1],NULL,0));
+        PutMsg(CREATE_MSG(ID_CLOSE,NBLOCK,(char*)argv->cctext->argvs[AO_ARGV1],argv->cctext->argvsLen[AO_ARGV1],NULL,0));
     return 0;
 }

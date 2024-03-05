@@ -139,7 +139,7 @@ void onProcessTask(pid_t *pid, int *status)
 
 
     /*      如果是系统调用，那么进行以下处理流程     */
-    // 初始化寄存器地址
+    // 初始化寄存器容器
     struct user user;
     long *regs = (long*)&user.regs;
 

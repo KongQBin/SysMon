@@ -2,15 +2,10 @@
 #include <sys/types.h>
 typedef enum _ETYPE
 {
-    /* 非阻塞
-     * 主要用于在某进程使用close关闭某个文件时，将该文件加入非阻塞队列
-     * 不关心上层是否返回结果，直接放行
-     */
+
+    // 非阻塞：主要用于文件监控
     NBLOCK  = 0,
-    /* 阻塞
-     * 主要用于在某进程使用execve/at拉起一个新的应用时塞入该队列进行阻塞式扫描
-     * 调用回调拿到返回结果，然后选择放行或者拒绝
-     */
+    // 阻塞：主要用于进程监控
     BLOCK   = 1,
     /* 特别关注
      * 主要是用于在某个进程使用open/at打开文件时与预先设置的重点文件进行对比
@@ -21,14 +16,13 @@ typedef enum _ETYPE
 
 typedef struct _CbMsg
 {
+    pid_t        otid;       // 消息源自哪个监控进程
+    int          wfd;        // 匿名管道写端，用于将控制消息传递给监控进程
+
     int          ocb;        // 消息源自哪个系统调用
-    ETYPE        type;       // 消息模式
-    pid_t        otid;       // 消息源自哪个监控线程
+    ETYPE        type;       // 消息类型
     pid_t        gpid;       // 被监控的目标进程组
     pid_t        pid;        // 被监控的目标进程
-    // 至于为什么exe与path没有共用一个指针与长度
-    // 是因为后期如果有需要可以很轻易的获取到哪个
-    // 进程操作了哪个文件，当前为了高效率没有进行实现
     const char   *exe;       // 可执行程序全路径
     int64_t      exelen;     // 可执行程序路径长度
     const char   *opath;     // 源文件全路径

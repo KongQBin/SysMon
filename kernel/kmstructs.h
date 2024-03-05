@@ -46,6 +46,7 @@ typedef struct _ControlBaseInfo
     int bnum;                   // 兄弟进程的数量，一般与cpu核心数量一致
     pid_t bpids[PROC_MAX];      // 兄弟进程的pid，用于忽略监控
     pid_t mainpid;              // 主进程pid
+    int wfd;                    // 用来向当前进程传递控制信息的管道写端
 } ControlBaseInfo;
 typedef struct _ControlPolicy
 {

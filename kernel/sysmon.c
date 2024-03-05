@@ -85,6 +85,7 @@ int StartSystemMonitor(MonCb callback)
         gInitInfo[i].spid = pid;
     }
     sleep(1);
+
     // 再一个循环，用来将ControlBaseInfo传递给各‘监控进程’
     int wbufsize = sizeof(ManageInfo)+sizeof(ControlBaseInfo);
     char *wbuf = calloc(1,wbufsize*gProcNum);
@@ -97,6 +98,7 @@ int StartSystemMonitor(MonCb callback)
         cbinfo->pid = gInitInfo[i].spid;
         cbinfo->mainpid = gettid();
         cbinfo->bnum = gProcNum;
+        cbinfo->wfd = gInitInfo[i].cfd[1];
         for(int j=0;j<gProcNum;++j)
         {
             cbinfo->bpids[j] = gInitInfo[j].spid;

@@ -10,6 +10,16 @@
 #include "readme.h"     // 首次开发回调函数请先阅读该文档
 #include "testfunc.h"
 
+#define CREATE_MSG(callid,block,...) \
+createMsg(callid,block,argv->info->cinfo->binfo.wfd, \
+argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,__VA_ARGS__)
+#define SAVE_ARGV(index,type,addr,len) \
+    argv->cctext->types[index] = type; \
+    argv->cctext->argvs[index] = addr; \
+    argv->cctext->argvsLen[index] = len;
+#define EXTERN_FUNC(name,argvs) \
+extern long cb##name(argvs); \
+extern long ce##name(argvs);
 
 // 获取PID详细信息
 extern int getCwd(const PidInfo *info,char **cwd, size_t *len);                    // cwd   = 当前运行路径                  传入空指针的地址，需要手动去释放
@@ -37,10 +47,6 @@ extern int getArg(const pid_t *pid, const long *originaddr, void **targetaddr, s
  * @ret：成功返回0
 */
 extern int getRealPath(const PidInfo *info, char **str, size_t *len);
-
-#define EXTERN_FUNC(name,argvs) \
-extern long cb##name(argvs); \
-extern long ce##name(argvs);
 
 // 拒绝(调用)服务
 extern long DoS();                         // (内联)获取dos标识

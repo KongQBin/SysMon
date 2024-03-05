@@ -44,9 +44,7 @@ long ceRenameat2(CB_ARGVS)
 //        DMSG(ML_INFO,"ofd=%d, opath=%s, nfd=%d, npath=%s,flags=%d\n",ofd,opath,nfd,npath,flags);
     }
     if(RET(argv->cctext->regs) == 0)
-        PutMsg(createMsg(ID_CLOSE, NBLOCK,argv->info->gpid,argv->info->pid,
-                         argv->info->exe,argv->info->exelen,
-                         opath,opathlen,npath,npathlen));
+        PutMsg(CREATE_MSG(ID_CLOSE, NBLOCK,opath,opathlen,npath,npathlen));
 
     if(opath)   free(opath);
     if(npath)   free(npath);

@@ -8,13 +8,9 @@ long cbExecve(CB_ARGVS)
     {
         if(!getRealPath(argv->info, &str, &len))
         {
-            PutMsg(createMsg(ID_EXECVE, ISBLOCK(argv->cinfo,ID_CLOSE)?BLOCK:NBLOCK,argv->info->gpid,argv->info->pid,
-                             argv->info->exe, argv->info->exelen,str,len,NULL,0));
-
+            PutMsg(CREATE_MSG(ID_EXECVE,ISBLOCK(argv->cinfo,ID_CLOSE)?BLOCK:NBLOCK,str,len,NULL,0));
             // 保存变量（勿删）
-            argv->cctext->types[AO_ARGV1] = CAT_STRING;
-            argv->cctext->argvsLen[AO_ARGV1] = len;
-            argv->cctext->argvs[AO_ARGV1] = (long)str;
+            SAVE_ARGV(AO_ARGV1,CAT_STRING,(long)str,len);
         }
         else
             DMSG(ML_ERR,"getRegsStrArg err : %s\n",strerror(errno));
