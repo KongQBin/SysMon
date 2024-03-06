@@ -12,6 +12,12 @@ void taskOpt(ManageInfo *minfo,ControlBaseInfo *cbinfo)
             if(!ptraceAttach(minfo->tpid))
                 pidInsert(&gPidTree,createPidInfo(minfo->tpid,0,0));
             break;
+        case MT_CallPass:
+//            DMSG(ML_INFO,"MT_CallPass %llu\n",minfo->tpid);
+            if(ptrace(PTRACE_SYSCALL, minfo->tpid, 0, 0) < 0)
+                DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,minfo->tpid);
+            delPinfo(minfo->tpid,-1,0);
+            break;
         case MT_ToExit:
         {
             DMSG(ML_INFO,"MT_ToExit TreeSize = %llu\n",pidTreeSize(&gPidTree));

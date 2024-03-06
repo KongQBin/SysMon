@@ -15,5 +15,6 @@
 #include "pglobal.h"
 #include "taskopt.h"
 #include "sigevt.h"
+#include "timeoutadm.h"
 // 监控子进程主函数
 void MonProcMain(pid_t tid);

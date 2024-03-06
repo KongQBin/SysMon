@@ -8,7 +8,7 @@ long cbExecve(CB_ARGVS)
 {
     //    printUserRegsStruct(regs);
     if(argv->cctext->argvsLen[AO_ARGV1] && PutMsg)
-        PutMsg(CREATE_MSG(ID_EXECVE,ISBLOCK(argv->cinfo,ID_CLOSE)?BLOCK:NBLOCK,
+        PutMsg(CREATE_MSG(ID_EXECVE,ISBLOCK(argv->cinfo,ID_EXECVE)?BLOCK:NBLOCK,
                           (char*)argv->cctext->argvs[AO_ARGV1],argv->cctext->argvsLen[AO_ARGV1],NULL,0));
     return 0;
 }

@@ -28,7 +28,7 @@ static int initControlInfoCallBackInfo()
     gDefaultControlPolicy->ftree.rb_node = NULL;
     gDefaultControlPolicy->dtree.rb_node = NULL;
     // 设置阻塞模式
-    //    SETBLOCK(info,ID_EXECVE);
+    SETBLOCK(gDefaultControlPolicy,ID_EXECVE);
     return 0;
 }
 
@@ -219,6 +219,14 @@ void onProcessTask(pid_t *pid, int *status)
         if((*av.clearContext && callid != ID_EXECVE) || !IS_BEGIN(regs))
             // 清空老的系统调用上下文信息
             clearContextArgvs(&pinfo->cctext);
+
+        if(ISBLOCK(gCurrentControlPolicy,callid) && IS_BEGIN(regs))
+        {
+//            DMSG(ML_INFO,"ISBLOCK(gCurrentControlPolicy,callid)\n");
+            // 挂起这个进程并放在超时列表中
+            tasktype = TT_TO_BLOCK;
+            addPinfo(*pid);
+        }
     }
     else
     {
@@ -233,7 +241,7 @@ void onProcessTask(pid_t *pid, int *status)
          */
         DMSG(ML_WARN,"Current *pid %d is not in pid tree.\n",*pid);
     }
-    if(tasktype = TT_NONE) tasktype = TT_SUCC;
+    if(tasktype == TT_NONE) tasktype = TT_SUCC;
 END:
 //    DMSG(ML_WARN,"Task type = %d\n",tasktype);
 
@@ -242,9 +250,9 @@ END:
     case TT_CALL_NOT_FOUND:
     case TT_SUCC:
     case TT_IS_EVENT:       //事件直接放行
-    case TT_TO_BLOCK:
     case TT_REGS_READ_ERROR:
     case TT_CALL_UNREASONABLE:
+    case TT_IS_SYSCALL:
 //         放行该任务(也可能是一个事件)
         if(ptrace(PTRACE_SYSCALL, *pid, 0, 0) < 0)
             DMSG(ML_WARN,"PTRACE_SYSCALL : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
@@ -270,6 +278,9 @@ END:
         if(ptrace(PTRACE_DETACH, *pid, 0, 0) < 0)
             DMSG(ML_WARN,"PTRACE_DETACH : %s(%d) pid is %d\n",strerror(errno),errno,*pid);
         pidDelete(&gPidTree,*pid);
+        break;
+    case TT_TO_BLOCK:
+//        DMSG(ML_INFO,"%lu to block\n",*pid);
         break;
     default:
         DMSG(ML_WARN,"Unknown TASKTYPE = %d\n",tasktype);
@@ -315,6 +326,10 @@ void MonProcMain(pid_t cpid)
 
         // 设置回调
         setTaskOptFunc(taskOpt);
+
+        // 启动'挂起超时管理线程'
+        if(startTimeoutAdmThread(&gDefaultControlPolicy->binfo.wfd))
+            break;
 
         pid_t npid;
         int status;
