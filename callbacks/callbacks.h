@@ -2,7 +2,6 @@
 /*
  * Callbacks
  * 该文件主要用于处理与上层业务逻辑相关的需求
- *
 */
 #include "kmstructs.h"
 #include "regsoffset.h"

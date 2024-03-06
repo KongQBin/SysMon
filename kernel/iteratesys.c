@@ -123,6 +123,7 @@ pid_t *getTask(pid_t gpid)
     if(!tpids)
     {
         DERR(calloc);
+        if(dir) closedir(dir);
         return tpids;
     }
 
@@ -140,12 +141,15 @@ pid_t *getTask(pid_t gpid)
         // 扩容
         if(index == tpids+pidsize-1)
         {
+            long offset = index - tpids;     // 获取当前偏移个数
             pid_t *tmp = realloc(tpids,(pidsize*2)*sizeof(pid_t));
             if(tmp)
             {
                 memset(tmp+pidsize, 0, pidsize*sizeof(pid_t));
                 pidsize *= 2;
                 tpids = tmp;
+                // 重新定位index
+                index = tpids + offset;
             }
             else
             {
@@ -154,6 +158,7 @@ pid_t *getTask(pid_t gpid)
             }
         }
     }
+    if(dir) closedir(dir);
     return tpids;
 }
 

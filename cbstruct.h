@@ -2,7 +2,6 @@
 #include <sys/types.h>
 typedef enum _ETYPE
 {
-
     // 非阻塞：主要用于文件监控
     NBLOCK  = 0,
     // 阻塞：主要用于进程监控
@@ -17,7 +16,7 @@ typedef enum _ETYPE
 typedef struct _CbMsg
 {
     pid_t        otid;       // 消息源自哪个监控进程
-    int          wfd;        // 匿名管道写端，用于将控制消息传递给监控进程
+    int          wfd;        // 匿名管道写端，用于将控制消息传递给监控进程，控制被监控进程的运行流程
 
     int          ocb;        // 消息源自哪个系统调用
     ETYPE        type;       // 消息类型

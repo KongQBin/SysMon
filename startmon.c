@@ -2,7 +2,6 @@
 #include "sysmon.h"
 #include "msgloop.h"
 
-int globalexit = 0;
 int printMsg(CbMsg *info)
 {
     if(!info) return -1;
@@ -39,6 +38,7 @@ int printMsg(CbMsg *info)
     return 0;
 }
 
+int globalexit = 0;
 //extern int gProcNum;
 //extern InitInfo gInitInfo[PROC_MAX];
 static void sigOptions(int sig)
@@ -69,6 +69,20 @@ void redirectStdout()
     else
         DERR(freopen);
 }
+
+//int main(int argc,char** argv)
+//{
+//    //    redirectStdout();
+//    // 设置进程优先级 -20 是最高优先级(子进程会继承该优先级)
+//    setpriority(PRIO_PROCESS, getpid(), -20);
+//    // 启动监控进程
+//    if(StartSystemMonitor(printMsg)) return -1;
+//    // 给主进程单独设置信号处理函数
+//    signal(SIGINT,sigOptions);  // Ctrl + c
+//    signal(SIGTERM,sigOptions); // kill -15
+//    // 进入主进程消息循环
+//    return MainMessageLoop();
+//}
 
 int StartMon(MonCb callback)
 {
