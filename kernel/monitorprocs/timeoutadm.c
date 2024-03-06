@@ -3,7 +3,7 @@
 typedef struct _SuspendPinfo
 {
     pid_t pid;              // 被挂起的pid
-    long pasttime;          // 已经被挂起多久了
+    time_t begintime;       // 起始时间
 } SuspendPinfo;
 
 typedef struct _SuspendVector
@@ -19,6 +19,7 @@ SuspendVector gSvector;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK()        pthread_mutex_lock(&mutex);
 #define UNLOCK()      pthread_mutex_unlock(&mutex);
+#define SEND_MSG(fd,addr,size)  write(fd,addr,size);
 
 void *timeoutAdmThread(void *argv)
 {
@@ -26,6 +27,7 @@ void *timeoutAdmThread(void *argv)
     while(!*writefd)
         usleep(0);
     ManageInfo info;
+    time_t ctime;
     while(1)
     {
         memset(&info,0,sizeof(info));
@@ -33,22 +35,22 @@ void *timeoutAdmThread(void *argv)
         if(!gSvector.sinfo) break;
         for(int i=0;i<gSvector.number;++i)
         {
-            ++ gSvector.sinfo[i].pasttime;
+            ctime = time(0);
             // 达到超时时间
-            if(gSvector.sinfo[i].pasttime >= gSvector.timeout)
+            if(ctime - gSvector.sinfo[i].begintime >= gSvector.timeout)
             {
 //                DMSG(ML_WARN,"%lu timeout\n",gSvector.sinfo[i].pid);
                 info.type = MT_CallPass;
                 info.tpid = gSvector.sinfo[i].pid;
                 // 通知解除挂起状态
-                write(*writefd,&info,sizeof(info));
+                SEND_MSG(*writefd,&info,sizeof(info));
                 delPinfo(gSvector.sinfo[i].pid,i,1);
                 // delPinfo会将后面的内存整体往前移动，覆盖当前位置，故--
                 --i;
             }
         }
         UNLOCK();
-        sleep(0);
+        usleep(0);   // <- 放弃时间片，勿删
     }
     return NULL;
 }
@@ -57,8 +59,7 @@ int preStopTimeoutAdmThread()
 {
     LOCK();
     // 放行全部的挂起
-    for(int i=0;i<gSvector.number;++i)
-        gSvector.sinfo[i].pasttime = 14;
+    gSvector.timeout = 0;
     UNLOCK();
     return 0;
 }
@@ -116,7 +117,7 @@ int addPinfo(const pid_t pid)
 
     LOCK();
     gSvector.sinfo[gSvector.number].pid = pid;
-    gSvector.sinfo[gSvector.number].pasttime = 0;
+    gSvector.sinfo[gSvector.number].begintime = time(0);
     ++gSvector.number;
     UNLOCK();
     return 0;
