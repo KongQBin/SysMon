@@ -22,6 +22,7 @@ typedef enum _ManageType
     MT_AddTid,               // 新增对进(线)程的监控
     MT_DelPid,               // 取消对进程组的监控
     MT_DelTid,               // 取消对进(线)程的监控
+    MT_CallTimeout,          // 对某个调用的处理超时
     MT_CallPass,             // 放过某个调用
     MT_CallDos,              // 拒绝某个调用
     MT_ToExit,               // 退出监控

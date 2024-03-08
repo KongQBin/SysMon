@@ -31,16 +31,16 @@ void *timeoutAdmThread(void *argv)
     while(1)
     {
         memset(&info,0,sizeof(info));
+        ctime = time(0);
         LOCK();
         if(!gSvector.sinfo) break;
         for(int i=0;i<gSvector.number;++i)
         {
-            ctime = time(0);
             // 达到超时时间
             if(ctime - gSvector.sinfo[i].begintime >= gSvector.timeout)
             {
 //                DMSG(ML_WARN,"%lu timeout\n",gSvector.sinfo[i].pid);
-                info.type = MT_CallPass;
+                info.type = MT_CallTimeout;
                 info.tpid = gSvector.sinfo[i].pid;
                 // 通知解除挂起状态
                 SEND_MSG(*writefd,&info,sizeof(info));
@@ -73,6 +73,7 @@ int stopTimeoutAdmThread()
     free(gSvector.sinfo);
     memset(&gSvector,0,sizeof(gSvector));
     UNLOCK();
+    return 0;
 }
 
 int startTimeoutAdmThread(const int *wfd)
@@ -114,10 +115,10 @@ int startTimeoutAdmThread(const int *wfd)
 
 int addPinfo(const pid_t pid)
 {
-
+    time_t ctime = time(0);
     LOCK();
     gSvector.sinfo[gSvector.number].pid = pid;
-    gSvector.sinfo[gSvector.number].begintime = time(0);
+    gSvector.sinfo[gSvector.number].begintime = ctime;
     ++gSvector.number;
     UNLOCK();
     return 0;
@@ -126,26 +127,32 @@ int addPinfo(const pid_t pid)
 int delPinfo(const pid_t pid, int index, int locked)
 {
     // 如果没有给索引信息，那么自行遍历查找
-    if(index == -1)
-    {
-        for(int i = 0;i<gSvector.number;++i)
-            if(gSvector.sinfo[i].pid == pid)
-            {
-                index = i;
-                break;
-            }
-    }
-    if(index == -1)
-        return -1;
-
     if(!locked) LOCK();
-    // 让后面的元素覆盖当前的元素
-    memmove(gSvector.sinfo+index,gSvector.sinfo+index+1,
-            (gSvector.size-index-1)*sizeof(SuspendPinfo));
-    // 对于最后一个元素(正常情况下仅仅挂起可执行程序的话，1024被用尽的概率不大)
-    if(index == gSvector.size-1)
-        memset(gSvector.sinfo+index,0,sizeof(SuspendPinfo));
-    --gSvector.number;
+    do{
+//        DMSG(ML_WARN,"index = %d\n",index);
+        if(index == -1)
+        {
+            for(int i = 0;i<gSvector.number;++i)
+                if(gSvector.sinfo[i].pid == pid)
+                {
+                    index = i;
+                    break;
+                }
+        }
+        if(index == -1)
+        {
+            DMSG(ML_ERR,"delPinfo,pid %lu is not found gSvector.number = %d\n",pid,gSvector.number);
+            break;
+        }
+
+        // 让后面的元素覆盖当前的元素
+        memmove(gSvector.sinfo+index,gSvector.sinfo+index+1,
+                (gSvector.size-index-1)*sizeof(SuspendPinfo));
+        // 对于最后一个元素(正常情况下仅仅挂起可执行程序的话，1024被用尽的概率不大)
+        if(index == gSvector.size-1)
+            memset(gSvector.sinfo+index,0,sizeof(SuspendPinfo));
+        --gSvector.number;
+    }while(0);
     if(!locked) UNLOCK();
     return 0;
 }
