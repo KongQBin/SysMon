@@ -42,6 +42,7 @@ typedef struct _ManageInfo
 #define CALL_MAX    512
 typedef struct _ControlBaseInfo
 {
+    int cid;
     pid_t pid;                  // 当前进程的pid
     int tpfd[2];                // 匿名管道，用于向父进程通信
     int bnum;                   // 兄弟进程的数量，一般与cpu核心数量一致

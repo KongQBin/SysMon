@@ -90,7 +90,7 @@ int startTimeoutAdmThread(const int *wfd)
         else
         {
             gSvector.size = 1024;       // 总容量
-            gSvector.timeout = 0;      // 超时时间
+            gSvector.timeout = 5;      // 超时时间
         }
     }
 

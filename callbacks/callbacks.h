@@ -15,7 +15,7 @@
 #include "testfunc.h"
 
 #define CREATE_MSG(callid,block,...) \
-    createMsg(callid,block,argv->info->cinfo->binfo.wfd, \
+    createMsg(argv->info->cinfo->binfo.cid,callid,block,argv->info->cinfo->binfo.wfd, \
     argv->info->gpid,argv->info->pid,argv->info->exe,argv->info->exelen,__VA_ARGS__)
 #define CUSTOM_SAVE_ARGV(argv,index,type,addr,len) ({\
     argv->cctext->types[index] = type; \

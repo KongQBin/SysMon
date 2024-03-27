@@ -24,10 +24,10 @@ int iterateAllThreadsToProcs()
         info.type = MT_AddTid;
         info.tpid = pids[i];
 
-        // 临时测试
-        {
-            if(info.tpid != 99145) skip = 1;
-        }
+//        // 临时测试
+//        {
+//            if(info.tpid != 99145) skip = 1;
+//        }
 
         if(skip) continue;
         if(sendManageInfo(&info))
@@ -49,7 +49,6 @@ int StartSystemMonitor(MonCb callback)
     // 根据CPU核心数量初始化‘监控进程数量’
     gProcNum = sysconf(_SC_NPROCESSORS_ONLN);
     gProcNum = gProcNum > PROC_MAX ? PROC_MAX : gProcNum;
-    gProcNum = 1;
     DMSG(ML_INFO, "Current cpu cont %d\n", gProcNum);
 
     // 定义'控制线程'所使用的匿名管道
@@ -95,6 +94,7 @@ int StartSystemMonitor(MonCb callback)
         ManageInfo *minfo = (ManageInfo *)(tmpaddr);
         ControlBaseInfo *cbinfo = (ControlBaseInfo *)(minfo+1);
         minfo->type = MT_Init;
+        cbinfo->cid = i;
         cbinfo->pid = gInitInfo[i].spid;
         cbinfo->mainpid = gettid();
         cbinfo->bnum = gProcNum;
