@@ -17,7 +17,7 @@ void testWrite()
     while(--i)
     {
         sleep(2);
-        int fd = open("/home/user/test.txt",O_RDWR|O_CREAT,0600);
+        int fd = open("/home/kongbin/test.txt",O_RDWR|O_CREAT,0600);
         if(fd < 0)
         {
             printf("open err : %s\n",strerror(errno));

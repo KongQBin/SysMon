@@ -96,7 +96,7 @@ int getRealPath(const PidInfo *info, char **str, size_t *len)
     if(strstr(*str,"./"))       // 路径中间包含了 */./* || */../*
     {
         // 此处已经拼接成功
-        // 例如变为了：/home/user/../kongbin/sysmon
+        // 例如变为了：/home/kongbin/../kongbin/sysmon
         // 然后将其转换为全绝对路径形式
         tmp = NULL;
         if((tmp = realpath(*str,tmp)) != NULL)
@@ -109,7 +109,7 @@ int getRealPath(const PidInfo *info, char **str, size_t *len)
         {
             /*
             * 一般是路径长度超过了PATH_MAX，errno = ENAMETOOLONG
-            * 无所谓，因为使用例如/home/user/../kongbin/sysmon路径也能满足业务逻辑
+            * 无所谓，因为使用例如/home/kongbin/../kongbin/sysmon路径也能满足业务逻辑
             * 转换是因为转换后的/home/kongbin/sysmon更加易于人类阅读，而且以也能适当的减少堆区内存的使用
             */
             DMSG(ML_WARN,"realpath err : %s\n",strerror(errno));
