@@ -1,4 +1,4 @@
-# SysMon
+# SysMon [![Hits](https://hits.sh/github.com/KongQBin/SysMon.svg?label=%E7%82%B9%E5%87%BB%E9%87%8F&color=007ec6)](https://hits.sh/github.com/KongQBin/SysMon/)
 **这是一个利用ptrace实现的系统监控项目，灵感来源于系统调用追踪工具strace。**
 **经验证，用于监控整个系统时性能不及预期，遂Pass，若没有特殊需求，将不再进行后续开发。**
 **main分支即是最新代码，不建议在Ubuntu系统中测试，因为对seccomp安全机制未做兼容性处理！！**
